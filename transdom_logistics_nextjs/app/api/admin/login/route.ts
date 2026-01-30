@@ -70,13 +70,9 @@ export async function POST(request: NextRequest) {
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction, // HTTPS only in production
-      sameSite: "strict" as const, // Stricter for admin routes
+      sameSite: "lax" as const, // Changed from strict to lax for better compatibility
       maxAge: 24 * 60 * 60, // 24 hours
       path: "/",
-      // Only set domain in production if specified
-      ...(isProduction && process.env.COOKIE_DOMAIN
-        ? { domain: process.env.COOKIE_DOMAIN }
-        : {}),
     };
 
     // Create response with HTTP-only cookies

@@ -11,6 +11,7 @@ export default function AdminLoginPage() {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     password: "",
@@ -49,8 +50,13 @@ export default function AdminLoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // Redirect to admin dashboard
-      router.push("/admin/dashboard");
+      // Show success message
+      setSuccess(true);
+      
+      // Small delay to show success state, then redirect
+      setTimeout(() => {
+        router.push("/admin/dashboard");
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -141,18 +147,46 @@ export default function AdminLoginPage() {
               <button
                 type="submit"
                 className="btn-signup-submit"
-                disabled={loading}
+                disabled={loading || success}
+                style={{
+                  backgroundColor: success ? "#10b981" : undefined,
+                  cursor: loading || success ? "not-allowed" : "pointer",
+                }}
               >
-                {loading ? "Signing In..." : "Sign In to Admin Portal"}
+                {success ? "✓ Success! Redirecting..." : loading ? "Signing In..." : "Sign In to Admin Portal"}
               </button>
             </form>
 
             {error && (
               <div
                 className="error-message"
-                style={{ color: "red", marginTop: "10px" }}
+                style={{
+                  color: "white",
+                  backgroundColor: "#dc2626",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  marginTop: "10px",
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
               >
-                {error}
+                ⚠️ {error}
+              </div>
+            )}
+
+            {success && (
+              <div
+                style={{
+                  color: "white",
+                  backgroundColor: "#10b981",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  marginTop: "10px",
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
+              >
+                ✓ Login successful! Redirecting to dashboard...
               </div>
             )}
 

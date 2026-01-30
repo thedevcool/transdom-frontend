@@ -217,9 +217,17 @@ export default function SignIn() {
             {error && (
               <div
                 className="error-message"
-                style={{ color: "red", marginTop: "10px" }}
+                style={{
+                  color: "white",
+                  backgroundColor: "#dc2626",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  marginTop: "10px",
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
               >
-                {error}
+                ⚠️ {error}
               </div>
             )}
 
