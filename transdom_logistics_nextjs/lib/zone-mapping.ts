@@ -277,3 +277,4 @@ export function getAllZones(): string[] {
 export function getZoneDisplayName(zone: string): string {
   return ZONE_DISPLAY_NAMES[zone] || zone;
 }
+
