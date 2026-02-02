@@ -96,18 +96,7 @@ export default function AdminDashboard() {
     }
   }, [router]);
 
-  useEffect(() => {
-    // Check auth first, then fetch orders only if authenticated
-    const isAuthenticated = checkAdminAuth();
-    if (isAuthenticated) {
-      // Add small delay to ensure cookies are fully loaded in production
-      setTimeout(() => {
-        fetchOrders();
-      }, 300);
-    }
-  }, [checkAdminAuth]);
-
-  const fetchOrders = async (status?: string) => {
+  const fetchOrders = useCallback(async (status?: string) => {
     try {
       const params = new URLSearchParams();
       if (status && status !== "all") {
@@ -182,7 +171,18 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Failed to fetch orders:", error);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Check auth first, then fetch orders only if authenticated
+    const isAuthenticated = checkAdminAuth();
+    if (isAuthenticated) {
+      // Add small delay to ensure cookies are fully loaded in production
+      setTimeout(() => {
+        fetchOrders();
+      }, 300);
+    }
+  }, [checkAdminAuth, fetchOrders]);
 
   const handleStatusChange = async (order: Order, newStatus: string) => {
     setActionLoading(true);

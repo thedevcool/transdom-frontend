@@ -209,6 +209,7 @@ export default function BookingPage() {
         setSenderStateIso("");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [senderDetails.country]);
 
   // Load sender cities when sender state changes
@@ -239,6 +240,7 @@ export default function BookingPage() {
         setReceiverStateIso("");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receiverDetails.country]);
 
   // Load receiver cities when receiver state changes
