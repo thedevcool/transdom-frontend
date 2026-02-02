@@ -89,6 +89,8 @@ function VerifyContent() {
           zone_picked: bookingDetails.zone_picked,
           delivery_speed: bookingDetails.delivery_speed,
           amount_paid: bookingDetails.amount_paid,
+          add_insurance: bookingDetails.add_insurance,
+          insurance_fee: bookingDetails.insurance_fee || 0,
         }),
       });
 

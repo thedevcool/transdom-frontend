@@ -8,39 +8,21 @@ import { getAuthUser, hasValidAuth, clearAuthSession } from "@/lib/auth";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 
-const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
+const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
-interface QuotationData {
-  // Sender
-  sender_name: string;
-  sender_phone: string;
-  sender_address: string;
-  sender_state: string;
-  sender_city: string;
-  sender_country: string;
-  sender_email: string;
-  // Receiver
-  receiver_name: string;
-  receiver_phone: string;
-  receiver_address: string;
-  receiver_state: string;
-  receiver_city: string;
-  receiver_post_code: string;
-  receiver_country: string;
-  // Shipment
-  shipment_description: string;
-  shipment_quantity: number;
-  shipment_value: number | null;
-  shipment_weight: number;
-  // Pricing
+interface BasicQuote {
+  pickup_country: string;
+  pickup_state?: string;
+  pickup_city?: string;
+  destination_country: string;
+  destination_state?: string;
+  destination_city?: string;
+  weight: number;
   zone_picked: string;
   delivery_speed: "economy" | "standard" | "express";
   amount_paid: number;
   currency: string;
   estimated_delivery: string;
-  // Additional
-  pickup_country: string;
-  destination_country: string;
   timestamp: string;
 }
 
@@ -64,36 +46,32 @@ export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [quotation, setQuotation] = useState<QuotationData | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [basicQuote, setBasicQuote] = useState<BasicQuote | null>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "quotation">("overview");
-  const [showHubModal, setShowHubModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleClearQuotation = useCallback(() => {
-    localStorage.removeItem(QUOTATION_STORAGE_KEY);
-    setQuotation(null);
+    localStorage.removeItem(BASIC_QUOTE_STORAGE_KEY);
+    setBasicQuote(null);
     setActiveTab("overview");
   }, []);
 
   const loadQuotation = useCallback(() => {
-    const savedQuotation = localStorage.getItem(QUOTATION_STORAGE_KEY);
-    if (savedQuotation) {
+    const savedQuote = localStorage.getItem(BASIC_QUOTE_STORAGE_KEY);
+    if (savedQuote) {
       try {
-        const data: QuotationData = JSON.parse(savedQuotation);
-        // Auto-append authenticated user's email to sender_email
-        const currentUser = getAuthUser();
-        if (currentUser && currentUser.email) {
-          data.sender_email = currentUser.email;
+        const data: BasicQuote = JSON.parse(savedQuote);
+        console.log("Loaded basic quote:", data);
+        // Only set if we have valid data with required fields
+        if (data && data.amount_paid && data.pickup_country && data.destination_country && data.weight && data.zone_picked) {
+          setBasicQuote(data);
+        } else {
+          console.warn("Invalid quote data, missing required fields:", data);
         }
-        setQuotation(data);
-        setActiveTab("quotation");
       } catch (e) {
-        console.error("Failed to parse quotation:", e);
+        console.error("Failed to parse basic quote:", e);
+        localStorage.removeItem(BASIC_QUOTE_STORAGE_KEY);
       }
     }
   }, []);
@@ -146,123 +124,8 @@ export default function Dashboard() {
     checkAuth();
   }, [router, loadQuotation, fetchShipments]);
 
-  const handleCreateCashOrder = async () => {
-    if (!quotation) return;
-    
-    setIsCreatingOrder(true);
-    setError(null);
-
-    try {
-      const orderData = {
-        sender_name: quotation.sender_name,
-        sender_phone: quotation.sender_phone,
-        sender_address: quotation.sender_address,
-        sender_state: quotation.sender_state,
-        sender_city: quotation.sender_city,
-        sender_country: quotation.sender_country,
-        sender_email: quotation.sender_email,
-        receiver_name: quotation.receiver_name,
-        receiver_phone: quotation.receiver_phone,
-        receiver_address: quotation.receiver_address,
-        receiver_state: quotation.receiver_state,
-        receiver_city: quotation.receiver_city,
-        receiver_post_code: quotation.receiver_post_code,
-        receiver_country: quotation.receiver_country,
-        shipment_description: quotation.shipment_description,
-        shipment_quantity: quotation.shipment_quantity,
-        shipment_value: quotation.shipment_value,
-        shipment_weight: quotation.shipment_weight,
-        zone_picked: quotation.zone_picked,
-        delivery_speed: quotation.delivery_speed,
-        amount_paid: quotation.amount_paid,
-      };
-
-      const response = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to create order");
-      }
-
-      // Clear quotation and show success
-      localStorage.removeItem(QUOTATION_STORAGE_KEY);
-      setQuotation(null);
-      setActiveTab("overview");
-      setSuccessMessage(`Order created successfully! Order Number: ${data.order_no}`);
-      fetchShipments(); // Refresh shipments
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 5000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create order");
-    } finally {
-      setIsCreatingOrder(false);
-    }
-  };
-
-  const handleProceedToPayment = () => {
-    if (!quotation) return;
-    
-    // Show hub center notification modal first
-    setShowHubModal(true);
-  };
-
-  const handleConfirmAndProceed = () => {
-    if (!quotation) return;
-    
-    setShowHubModal(false);
-
-    if (paymentMethod === "cash") {
-      handleCreateCashOrder();
-    } else {
-      // Save complete booking details for payment processing
-      const completeBookingData = {
-        sender_name: quotation.sender_name,
-        sender_phone: quotation.sender_phone,
-        sender_address: quotation.sender_address,
-        sender_state: quotation.sender_state,
-        sender_city: quotation.sender_city,
-        sender_country: quotation.sender_country,
-        sender_email: quotation.sender_email,
-        receiver_name: quotation.receiver_name,
-        receiver_phone: quotation.receiver_phone,
-        receiver_address: quotation.receiver_address,
-        receiver_state: quotation.receiver_state,
-        receiver_city: quotation.receiver_city,
-        receiver_post_code: quotation.receiver_post_code,
-        receiver_country: quotation.receiver_country,
-        shipment_description: quotation.shipment_description,
-        shipment_quantity: quotation.shipment_quantity,
-        shipment_value: quotation.shipment_value,
-        shipment_weight: quotation.shipment_weight,
-        zone_picked: quotation.zone_picked,
-        delivery_speed: quotation.delivery_speed,
-        amount_paid: quotation.amount_paid,
-      };
-
-      localStorage.setItem(
-        "transdom_booking_details",
-        JSON.stringify(completeBookingData),
-      );
-
-      // Redirect to online payment with query params
-      const params = new URLSearchParams({
-        zone: quotation.zone_picked,
-        weight: quotation.shipment_weight.toString(),
-        price: quotation.amount_paid.toString(),
-        speed: quotation.delivery_speed,
-        email: quotation.sender_email,
-      });
-      router.push(`/payment?${params.toString()}`);
-    }
+  const handleContinueBooking = () => {
+    router.push("/booking");
   };
 
   if (loading) {
@@ -303,42 +166,7 @@ export default function Dashboard() {
     <div className="dashboard">
       <Header />
 
-      {/* Hub Center Notification Modal */}
-      {showHubModal && (
-        <div className="modal-overlay" onClick={() => setShowHubModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon">📍</div>
-            <h2 className="modal-title">Important Notice</h2>
-            <p className="modal-message">
-              Shipment should be dropped off at our Hub Center in <strong>Port Harcourt</strong> or <strong>Lagos</strong>
-            </p>
-            <div className="modal-actions">
-              <button 
-                className="btn-modal-cancel" 
-                onClick={() => setShowHubModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn-modal-confirm" 
-                onClick={handleConfirmAndProceed}
-              >
-                I Understand, Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <main className="dashboard-main">
-        {/* Success Message */}
-        {successMessage && (
-          <div className="success-notification">
-            <div className="success-icon">✅</div>
-            <span>{successMessage}</span>
-          </div>
-        )}
-
         {/* Welcome Section */}
         <div className="welcome-section">
           <div className="welcome-content">
@@ -363,11 +191,11 @@ export default function Dashboard() {
           <button
             className={`tab-btn ${activeTab === "quotation" ? "active" : ""}`}
             onClick={() => setActiveTab("quotation")}
-            disabled={!quotation}
+            disabled={!basicQuote}
           >
             <span className="tab-icon">📝</span>
-            Pending Quotation
-            {quotation && <span className="badge">1</span>}
+            Pending Quote
+            {basicQuote && <span className="badge">1</span>}
           </button>
         </div>
 
@@ -416,12 +244,12 @@ export default function Dashboard() {
             <div className="shipments-section">
               <div className="section-header">
                 <h2>Recent Shipments</h2>
-                {quotation && (
+                {basicQuote && (
                   <button
                     className="btn-view-quotation"
                     onClick={() => setActiveTab("quotation")}
                   >
-                    View Pending Quotation
+                    View Pending Quote
                   </button>
                 )}
               </div>
@@ -492,6 +320,18 @@ export default function Dashboard() {
                             <div className="info-text">₦{shipment.amount_paid.toLocaleString()}</div>
                           </div>
                         </div>
+                        
+                        {/* View Receipt Button for Approved Orders */}
+                        {shipment.status === "approved" && (
+                          <div className="shipment-actions">
+                            <Link
+                              href={`/receipt/${shipment.order_no}`}
+                              className="btn-view-receipt"
+                            >
+                              📄 View Receipt
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -511,209 +351,85 @@ export default function Dashboard() {
         )}
 
         {/* Quotation Tab */}
-        {activeTab === "quotation" && quotation && (
+        {activeTab === "quotation" && basicQuote && (
           <div className="quotation-card">
             <div className="quotation-header">
-              <h2>Review Your Booking</h2>
+              <h2>Your Shipping Quote</h2>
               <button onClick={handleClearQuotation} className="btn-clear">
                 Clear Quote
               </button>
             </div>
 
-            {/* Sender Information */}
-            <div className="review-section">
-              <h3 className="section-title">📤 Sender Information</h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">Name:</span>
-                  <span className="info-value">{quotation.sender_name}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Email:</span>
-                  <span className="info-value">{quotation.sender_email}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Phone:</span>
-                  <span className="info-value">{quotation.sender_phone}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Country:</span>
-                  <span className="info-value">{quotation.sender_country}</span>
-                </div>
-                <div className="info-item full-width">
-                  <span className="info-label">Address:</span>
-                  <span className="info-value">{quotation.sender_address}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">City:</span>
-                  <span className="info-value">{quotation.sender_city}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">State:</span>
-                  <span className="info-value">{quotation.sender_state}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Receiver Information */}
-            <div className="review-section">
-              <h3 className="section-title">📥 Receiver Information</h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">Name:</span>
-                  <span className="info-value">{quotation.receiver_name}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Phone:</span>
-                  <span className="info-value">{quotation.receiver_phone}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Country:</span>
-                  <span className="info-value">{quotation.receiver_country}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Post Code:</span>
-                  <span className="info-value">{quotation.receiver_post_code}</span>
-                </div>
-                <div className="info-item full-width">
-                  <span className="info-label">Address:</span>
-                  <span className="info-value">{quotation.receiver_address}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">City:</span>
-                  <span className="info-value">{quotation.receiver_city}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">State:</span>
-                  <span className="info-value">{quotation.receiver_state}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Shipment Information */}
-            <div className="review-section">
-              <h3 className="section-title">📦 Shipment Information</h3>
-              <div className="info-grid">
-                <div className="info-item full-width">
-                  <span className="info-label">Description:</span>
-                  <span className="info-value">{quotation.shipment_description}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Quantity:</span>
-                  <span className="info-value">{quotation.shipment_quantity} item(s)</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Weight:</span>
-                  <span className="info-value">{quotation.shipment_weight} kg</span>
-                </div>
-                {quotation.shipment_value && (
-                  <div className="info-item">
-                    <span className="info-label">Declared Value:</span>
-                    <span className="info-value">{quotation.currency} {quotation.shipment_value.toLocaleString()}</span>
+            <div className="quote-summary">
+              <div className="quote-route">
+                <div className="route-point">
+                  <span className="route-icon">📍</span>
+                  <div>
+                    <div className="route-label">From</div>
+                    <div className="route-value">{basicQuote.pickup_country}</div>
+                    {(basicQuote.pickup_city || basicQuote.pickup_state) && (
+                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "4px" }}>
+                        {[basicQuote.pickup_city, basicQuote.pickup_state].filter(Boolean).join(", ")}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+                <div className="route-arrow">→</div>
+                <div className="route-point">
+                  <span className="route-icon">📍</span>
+                  <div>
+                    <div className="route-label">To</div>
+                    <div className="route-value">{basicQuote.destination_country}</div>
+                    {(basicQuote.destination_city || basicQuote.destination_state) && (
+                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "4px" }}>
+                        {[basicQuote.destination_city, basicQuote.destination_state].filter(Boolean).join(", ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Shipping Details */}
-            <div className="review-section">
-              <h3 className="section-title">🚚 Shipping Details</h3>
-              <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">From:</span>
-                  <span className="info-value">{quotation.pickup_country}</span>
+              <div className="quote-details-grid">
+                <div className="quote-detail">
+                  <span className="detail-label">Weight</span>
+                  <span className="detail-value">{basicQuote.weight} kg</span>
                 </div>
-                <div className="info-item">
-                  <span className="info-label">To:</span>
-                  <span className="info-value">{quotation.destination_country}</span>
+                <div className="quote-detail">
+                  <span className="detail-label">Zone</span>
+                  <span className="detail-value">{basicQuote.zone_picked}</span>
                 </div>
-                <div className="info-item">
-                  <span className="info-label">Zone:</span>
-                  <span className="info-value">{quotation.zone_picked}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Delivery Speed:</span>
-                  <span className="info-value" style={{ textTransform: "capitalize" }}>
-                    {quotation.delivery_speed}
+                <div className="quote-detail">
+                  <span className="detail-label">Delivery Speed</span>
+                  <span className="detail-value" style={{ textTransform: "capitalize" }}>
+                    {basicQuote.delivery_speed}
                   </span>
                 </div>
-                <div className="info-item full-width">
-                  <span className="info-label">Estimated Delivery:</span>
-                  <span className="info-value">{quotation.estimated_delivery}</span>
+                <div className="quote-detail">
+                  <span className="detail-label">Estimated Delivery</span>
+                  <span className="detail-value">{basicQuote.estimated_delivery}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Total Price */}
-            <div className="total-price-section">
-              <span className="total-label">Total Price:</span>
-              <span className="total-amount">
-                {quotation.currency} {quotation.amount_paid.toLocaleString()}
-              </span>
-            </div>
-
-            {/* Payment Method Selection */}
-            <div className="payment-method-section">
-              <h3 className="section-title">💳 Select Payment Method</h3>
-              <div className="payment-options">
-                <label className={`payment-option ${paymentMethod === "online" ? "selected" : ""}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="online"
-                    checked={paymentMethod === "online"}
-                    onChange={(e) => setPaymentMethod(e.target.value as "online" | "cash")}
-                  />
-                  <div className="option-content">
-                    <div className="option-icon">💳</div>
-                    <div className="option-details">
-                      <div className="option-name">Online Payment</div>
-                      <div className="option-desc">Pay securely with Paystack</div>
-                    </div>
-                  </div>
-                </label>
-
-                <label className={`payment-option ${paymentMethod === "cash" ? "selected" : ""}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cash"
-                    checked={paymentMethod === "cash"}
-                    onChange={(e) => setPaymentMethod(e.target.value as "online" | "cash")}
-                  />
-                  <div className="option-content">
-                    <div className="option-icon">💵</div>
-                    <div className="option-details">
-                      <div className="option-name">Cash Payment</div>
-                      <div className="option-desc">Pay on delivery or pickup</div>
-                    </div>
-                  </div>
-                </label>
+              <div className="quote-price">
+                <span className="price-label">Total Price</span>
+                <span className="price-value">
+                  {basicQuote?.currency || '₦'} {basicQuote?.amount_paid?.toLocaleString() || '0'}
+                </span>
               </div>
+
+              <button onClick={handleContinueBooking} className="btn-continue-booking">
+                Continue with Booking →
+              </button>
             </div>
-
-            {error && (
-              <div className="error-message">
-                {error}
-              </div>
-            )}
-
-            <button 
-              onClick={handleProceedToPayment} 
-              className="btn-proceed-payment"
-              disabled={isCreatingOrder}
-            >
-              {isCreatingOrder ? "Creating Order..." : paymentMethod === "online" ? "Proceed to Payment" : "Confirm Order (Cash Payment)"}
-            </button>
           </div>
         )}
 
         {/* No Quotation in Quotation Tab */}
-        {activeTab === "quotation" && !quotation && (
+        {activeTab === "quotation" && !basicQuote && (
           <div className="empty-state">
             <div className="empty-icon">📝</div>
-            <h3>No Pending Quotation</h3>
-            <p>You don&apos;t have any pending quotations at the moment.</p>
+            <h3>No Pending Quote</h3>
+            <p>You don&apos;t have any pending quotes at the moment.</p>
             <Link href="/quotation" className="btn-get-started">
               Get a Quote
             </Link>
@@ -1272,6 +988,34 @@ export default function Dashboard() {
           font-weight: 600;
         }
 
+        .shipment-actions {
+          margin-top: 1rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e5e7eb;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .btn-view-receipt {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.625rem 1.25rem;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-view-receipt:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
         .empty-shipments {
           text-align: center;
           padding: 4rem 2rem;
@@ -1336,6 +1080,131 @@ export default function Dashboard() {
         .btn-clear:hover {
           background: #dc2626;
           color: white;
+        }
+
+        /* Quote Summary */
+        .quote-summary {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .quote-route {
+          display: flex;
+          justify-content: space-around;
+          align-items: center;
+          background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+          border-radius: 12px;
+          padding: 2rem;
+          gap: 2rem;
+        }
+
+        .route-point {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex: 1;
+        }
+
+        .route-icon {
+          font-size: 32px;
+        }
+
+        .route-label {
+          font-size: 12px;
+          color: #6b7280;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 0.25rem;
+        }
+
+        .route-value {
+          font-size: 18px;
+          font-weight: 700;
+          color: #047857;
+        }
+
+        .route-arrow {
+          font-size: 32px;
+          color: #10b981;
+          font-weight: 700;
+        }
+
+        .quote-details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.5rem;
+          background: #f9fafb;
+          border-radius: 12px;
+          padding: 2rem;
+        }
+
+        .quote-detail {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .detail-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+          font-size: 16px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+
+        .quote-price {
+          background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+          border-radius: 12px;
+          padding: 2rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .price-label {
+          font-size: 18px;
+          font-weight: 700;
+          color: white;
+        }
+
+        .price-value {
+          font-size: 32px;
+          font-weight: 700;
+          color: #fdd835;
+        }
+
+        .btn-continue-booking {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          border: none;
+          padding: 1.125rem 2rem;
+          border-radius: 8px;
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+        }
+
+        .btn-continue-booking:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-continue-booking:active {
+          transform: translateY(0);
         }
 
         /* Review Sections */
@@ -1650,6 +1519,15 @@ export default function Dashboard() {
 
           .shipment-info {
             grid-template-columns: 1fr;
+          }
+
+          .shipment-actions {
+            justify-content: stretch;
+          }
+
+          .btn-view-receipt {
+            width: 100%;
+            justify-content: center;
           }
 
           .quotation-card {

@@ -6,41 +6,21 @@ import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { useRouter } from "next/navigation";
-import { hasValidAuth, getAuthUser } from "@/lib/auth";
+import { hasValidAuth } from "@/lib/auth";
+import { 
+  getAllCountries, 
+  getCountryIsoCode, 
+  getStatesOfCountry, 
+  getCitiesOfState,
+  getStateIsoCode,
+  StateOption,
+  CityOption 
+} from "@/lib/countries-data";
 
-const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
+const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
-// Country options with proper names that match zone mapping
-const COUNTRIES = [
-  // Africa
-  { value: "Nigeria", label: "Nigeria" },
-  { value: "Ghana", label: "Ghana" },
-  { value: "Kenya", label: "Kenya" },
-  { value: "South Africa", label: "South Africa" },
-  { value: "Egypt", label: "Egypt" },
-
-  // Europe
-  { value: "United Kingdom", label: "United Kingdom" },
-  { value: "France", label: "France" },
-  { value: "Germany", label: "Germany" },
-  { value: "Spain", label: "Spain" },
-  { value: "Italy", label: "Italy" },
-  { value: "Netherlands", label: "Netherlands" },
-
-  // Americas
-  { value: "United States", label: "United States" },
-  { value: "Canada", label: "Canada" },
-  { value: "Brazil", label: "Brazil" },
-  { value: "Mexico", label: "Mexico" },
-
-  // Asia
-  { value: "China", label: "China" },
-  { value: "Japan", label: "Japan" },
-  { value: "India", label: "India" },
-  { value: "Singapore", label: "Singapore" },
-  { value: "United Arab Emirates", label: "United Arab Emirates" },
-  { value: "Saudi Arabia", label: "Saudi Arabia" },
-];
+// Get all countries with zone mapping
+const COUNTRIES = getAllCountries();
 
 interface DeliveryOption {
   speed: "economy" | "standard" | "express";
@@ -62,12 +42,7 @@ interface QuotationResult {
 
 type Step =
   | "basic"
-  | "sender"
-  | "receiver"
-  | "shipment"
-  | "pricing"
-  | "delivery"
-  | "review";
+  | "delivery";
 
 export default function QuotationPage() {
   const router = useRouter();
@@ -86,169 +61,47 @@ export default function QuotationPage() {
   // Basic quote data
   const [quoteData, setQuoteData] = useState({
     pickupCountry: "",
+    pickupState: "",
+    pickupCity: "",
     destinationCountry: "",
+    destinationState: "",
+    destinationCity: "",
     weight: "",
   });
 
-  // Booking details
-  const [senderDetails, setSenderDetails] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    state: "",
-    city: "",
-    country: "",
-    email: "",
-  });
-
-  const [receiverDetails, setReceiverDetails] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    state: "",
-    city: "",
-    postCode: "",
-    country: "",
-  });
-
-  const [shipmentDetails, setShipmentDetails] = useState({
-    description: "",
-    quantity: "1",
-    value: "",
-  });
-
-  // Auto-fill sender details for authenticated users
-  useEffect(() => {
-    const user = getAuthUser();
-    if (user) {
-      setSenderDetails((prev) => ({
-        ...prev,
-        email: user.email,
-        name: `${user.firstname} ${user.lastname}`,
-        phone: user.phone_number || prev.phone,
-        country: user.country || prev.country,
-      }));
-    }
-  }, []);
-
-  // Auto-select sender country from pickup country
-  useEffect(() => {
-    if (quoteData.pickupCountry) {
-      setSenderDetails((prev) => ({
-        ...prev,
-        country: quoteData.pickupCountry,
-      }));
-    }
-  }, [quoteData.pickupCountry]);
-
-  // Auto-select receiver country from destination country
-  useEffect(() => {
-    if (quoteData.destinationCountry) {
-      setReceiverDetails((prev) => ({
-        ...prev,
-        country: quoteData.destinationCountry,
-      }));
-    }
-  }, [quoteData.destinationCountry]);
+  // Dynamic state and city options
+  const [pickupStates, setPickupStates] = useState<StateOption[]>([]);
+  const [pickupCities, setPickupCities] = useState<CityOption[]>([]);
+  const [destStates, setDestStates] = useState<StateOption[]>([]);
+  const [destCities, setDestCities] = useState<CityOption[]>([]);
+  const [pickupCountryIso, setPickupCountryIso] = useState<string>("");
+  const [destCountryIso, setDestCountryIso] = useState<string>("");
+  const [pickupStateIso, setPickupStateIso] = useState<string>("");
+  const [destStateIso, setDestStateIso] = useState<string>("");
 
   // Step 1: Basic Quote Info
   const handleBasicSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formDataObj = new FormData(e.currentTarget);
     const pickupCountry = formDataObj.get("pickup-country") as string;
+    const pickupState = formDataObj.get("pickup-state") as string;
+    const pickupCity = formDataObj.get("pickup-city") as string;
     const destinationCountry = formDataObj.get("destination-country") as string;
+    const destinationState = formDataObj.get("destination-state") as string;
+    const destinationCity = formDataObj.get("destination-city") as string;
     const weight = formDataObj.get("weight") as string;
 
     setQuoteData({
       pickupCountry,
+      pickupState,
+      pickupCity,
       destinationCountry,
+      destinationState,
+      destinationCity,
       weight,
     });
 
     setError(null);
-    setCurrentStep("sender");
-  };
-
-  // Step 2: Sender Details
-  const handleSenderSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Validate phone number is strictly numeric
-    const phoneRegex = /^\d+$/;
-    if (!senderDetails.phone || !phoneRegex.test(senderDetails.phone)) {
-      setError("Phone number must contain only numbers (no spaces, dashes, or special characters)");
-      return;
-    }
-    
-    // Validate phone number includes country code (minimum 10 digits)
-    if (senderDetails.phone.length < 10) {
-      setError("Phone number must include country code (e.g., 2348133730145)");
-      return;
-    }
-    
-    setError(null);
-    setCurrentStep("receiver");
-  };
-
-  // Step 3: Receiver Details
-  const handleReceiverSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Validate phone number is strictly numeric
-    const numericRegex = /^\d+$/;
-    if (!receiverDetails.phone || !numericRegex.test(receiverDetails.phone)) {
-      setError("Phone number must contain only numbers (no spaces, dashes, or special characters)");
-      return;
-    }
-    
-    // Validate phone number includes country code (minimum 10 digits)
-    if (receiverDetails.phone.length < 10) {
-      setError("Phone number must include country code (e.g., 2348133730145)");
-      return;
-    }
-    
-    // Validate post code is provided and strictly numeric
-    if (!receiverDetails.postCode || receiverDetails.postCode.trim() === "") {
-      setError("Receiver post code is required");
-      return;
-    }
-    
-    if (!numericRegex.test(receiverDetails.postCode)) {
-      setError("Post code must contain only numbers (no spaces, dashes, or special characters)");
-      return;
-    }
-    
-    setError(null);
-    setCurrentStep("shipment");
-  };
-
-  // Step 4: Shipment Details
-  const handleShipmentSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Validate shipment details
-    if (!shipmentDetails.description || shipmentDetails.description.trim().length < 3) {
-      setError("Shipment description must be at least 3 characters");
-      return;
-    }
-    
-    const quantity = parseInt(shipmentDetails.quantity);
-    if (isNaN(quantity) || quantity < 1) {
-      setError("Quantity must be at least 1");
-      return;
-    }
-    
-    // Validate value if provided
-    if (shipmentDetails.value && shipmentDetails.value.trim() !== "") {
-      const value = parseFloat(shipmentDetails.value);
-      if (isNaN(value) || value < 0) {
-        setError("Shipment value must be a positive number");
-        return;
-      }
-    }
-    
-    setError(null);
-    // Now get the pricing
     getPricing();
   };
 
@@ -287,14 +140,74 @@ export default function QuotationPage() {
     }
   };
 
-  // Step 5: Select Delivery Speed
-  const handleSelectDelivery = () => {
-    setCurrentStep("review");
-  };
 
-  // Step 6: Create Order
+
+  // Load pickup states when pickup country changes
+  useEffect(() => {
+    if (quoteData.pickupCountry) {
+      const isoCode = getCountryIsoCode(quoteData.pickupCountry);
+      if (isoCode) {
+        setPickupCountryIso(isoCode);
+        const states = getStatesOfCountry(isoCode);
+        setPickupStates(states);
+        // Reset state and city when country changes
+        setQuoteData(prev => ({ ...prev, pickupState: "", pickupCity: "" }));
+        setPickupCities([]);
+        setPickupStateIso("");
+      }
+    }
+  }, [quoteData.pickupCountry]);
+
+  // Load pickup cities when pickup state changes
+  useEffect(() => {
+    if (pickupCountryIso && quoteData.pickupState) {
+      const stateIso = getStateIsoCode(pickupCountryIso, quoteData.pickupState);
+      if (stateIso) {
+        setPickupStateIso(stateIso);
+        const cities = getCitiesOfState(pickupCountryIso, stateIso);
+        setPickupCities(cities);
+        // Reset city when state changes
+        setQuoteData(prev => ({ ...prev, pickupCity: "" }));
+      }
+    }
+  }, [pickupCountryIso, quoteData.pickupState]);
+
+  // Load destination states when destination country changes
+  useEffect(() => {
+    if (quoteData.destinationCountry) {
+      const isoCode = getCountryIsoCode(quoteData.destinationCountry);
+      if (isoCode) {
+        setDestCountryIso(isoCode);
+        const states = getStatesOfCountry(isoCode);
+        setDestStates(states);
+        // Reset state and city when country changes
+        setQuoteData(prev => ({ ...prev, destinationState: "", destinationCity: "" }));
+        setDestCities([]);
+        setDestStateIso("");
+      }
+    }
+  }, [quoteData.destinationCountry]);
+
+  // Load destination cities when destination state changes
+  useEffect(() => {
+    if (destCountryIso && quoteData.destinationState) {
+      const stateIso = getStateIsoCode(destCountryIso, quoteData.destinationState);
+      if (stateIso) {
+        setDestStateIso(stateIso);
+        const cities = getCitiesOfState(destCountryIso, stateIso);
+        setDestCities(cities);
+        // Reset city when state changes
+        setQuoteData(prev => ({ ...prev, destinationCity: "" }));
+      }
+    }
+  }, [destCountryIso, quoteData.destinationState]);
+
+  // Step 3: Book Now - Save and redirect
   const handleCreateOrder = () => {
-    if (!quotationResult) return;
+    if (!quotationResult || !selectedSpeed) {
+      setError("Please select a delivery speed");
+      return;
+    }
 
     const selectedOption = quotationResult.delivery_options.find(
       (opt) => opt.speed === selectedSpeed,
@@ -302,103 +215,56 @@ export default function QuotationPage() {
 
     if (!selectedOption) return;
 
-    // Save complete quotation data to localStorage
-    const quotationData = {
-      // Sender
-      sender_name: senderDetails.name,
-      sender_phone: senderDetails.phone,
-      sender_address: senderDetails.address,
-      sender_state: senderDetails.state,
-      sender_city: senderDetails.city,
-      sender_country: senderDetails.country,
-      sender_email: senderDetails.email,
-
-      // Receiver
-      receiver_name: receiverDetails.name,
-      receiver_phone: receiverDetails.phone,
-      receiver_address: receiverDetails.address,
-      receiver_state: receiverDetails.state,
-      receiver_city: receiverDetails.city,
-      receiver_post_code: receiverDetails.postCode,
-      receiver_country: receiverDetails.country,
-
-      // Shipment
-      shipment_description: shipmentDetails.description,
-      shipment_quantity: parseInt(shipmentDetails.quantity),
-      shipment_value: shipmentDetails.value
-        ? parseFloat(shipmentDetails.value)
-        : null,
-      shipment_weight: quotationResult.weight,
-
-      // Pricing
+    // Save basic quote to localStorage
+    const basicQuote = {
+      pickup_country: quotationResult.pickup_country,
+      pickup_state: quoteData.pickupState,
+      pickup_city: quoteData.pickupCity,
+      destination_country: quotationResult.destination_country,
+      destination_state: quoteData.destinationState,
+      destination_city: quoteData.destinationCity,
+      weight: quotationResult.weight,
       zone_picked: quotationResult.destination_zone,
       delivery_speed: selectedSpeed,
       amount_paid: parseFloat(selectedOption.price),
-      currency: quotationResult.currency,
       estimated_delivery: selectedOption.estimated_delivery,
-
-      // Additional info
-      pickup_country: quotationResult.pickup_country,
-      destination_country: quotationResult.destination_country,
+      currency: quotationResult.currency,
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem(QUOTATION_STORAGE_KEY, JSON.stringify(quotationData));
+    localStorage.setItem(BASIC_QUOTE_STORAGE_KEY, JSON.stringify(basicQuote));
 
-    // Check if user is authenticated
+    // Check authentication
     const isAuth = hasValidAuth();
     if (isAuth) {
-      // User is authenticated, go to dashboard
-      router.push("/dashboard?from=quotation");
+      // Redirect directly to booking page
+      router.push("/booking");
     } else {
-      // User not authenticated, redirect to sign-in with redirect param
-      router.push("/sign-in?redirect=quotation");
+      // Redirect to sign-in
+      router.push("/sign-in?redirect=booking");
     }
   };
 
+  // Start Over - Clear all data
   const handleStartOver = () => {
     setCurrentStep("basic");
     setQuotationResult(null);
+    setSelectedSpeed("standard");
     setError(null);
     setQuoteData({
       pickupCountry: "",
+      pickupState: "",
+      pickupCity: "",
       destinationCountry: "",
+      destinationState: "",
+      destinationCity: "",
       weight: "",
     });
-    setSenderDetails({
-      name: "",
-      phone: "",
-      address: "",
-      state: "",
-      city: "",
-      country: "",
-      email: "",
-    });
-    setReceiverDetails({
-      name: "",
-      phone: "",
-      address: "",
-      state: "",
-      city: "",
-      postCode: "",
-      country: "",
-    });
-    setShipmentDetails({
-      description: "",
-      quantity: "1",
-      value: "",
-    });
+    setPickupStates([]);
+    setPickupCities([]);
+    setDestStates([]);
+    setDestCities([]);
   };
-
-  const progressPercentage = {
-    basic: 14,
-    sender: 28,
-    receiver: 42,
-    shipment: 56,
-    pricing: 70,
-    delivery: 85,
-    review: 100,
-  }[currentStep];
 
   return (
     <>
@@ -440,40 +306,6 @@ export default function QuotationPage() {
               </button>
             </div>
 
-            {/* Progress Indicator */}
-            {activeTab === "international" && currentStep !== "basic" && (
-              <div className="form-progress-container">
-                <div className="form-progress-bar">
-                  <div
-                    className="form-progress-fill"
-                    style={{ width: `${progressPercentage}%` }}
-                  >
-                    <span className="form-progress-text">
-                      {progressPercentage}%
-                    </span>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: "10px",
-                    color: "#6b7280",
-                    fontWeight: "500",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  <span>Basic</span>
-                  <span>Sender</span>
-                  <span>Receiver</span>
-                  <span>Shipment</span>
-                  <span>Pricing</span>
-                  <span>Delivery</span>
-                  <span>Review</span>
-                </div>
-              </div>
-            )}
-
             {error && (
               <div
                 style={{
@@ -488,13 +320,14 @@ export default function QuotationPage() {
               </div>
             )}
 
-            {/* Step 1: Basic Quote Info */}
+            {/* Basic Quote Form */}
             {activeTab === "international" && currentStep === "basic" && (
               <form className="quotation-form" onSubmit={handleBasicSubmit}>
-                <h3 className="form-section-title">Pickup</h3>
+                <h3 className="form-section-title">Pickup Location</h3>
+
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="pickup-country">Country</label>
+                    <label htmlFor="pickup-country">Country *</label>
                     <select
                       name="pickup-country"
                       id="pickup-country"
@@ -518,10 +351,91 @@ export default function QuotationPage() {
                   </div>
                 </div>
 
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="pickup-state">State/Province</label>
+                    {pickupStates.length > 0 ? (
+                      <select
+                        name="pickup-state"
+                        id="pickup-state"
+                        className="form-control"
+                        value={quoteData.pickupState}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            pickupState: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select State/Province</option>
+                        {pickupStates.map((state) => (
+                          <option key={state.isoCode} value={state.value}>
+                            {state.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="pickup-state"
+                        id="pickup-state"
+                        className="form-control"
+                        placeholder="Enter state/province (optional)"
+                        value={quoteData.pickupState}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            pickupState: e.target.value,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="pickup-city">City</label>
+                    {pickupCities.length > 0 ? (
+                      <select
+                        name="pickup-city"
+                        id="pickup-city"
+                        className="form-control"
+                        value={quoteData.pickupCity}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            pickupCity: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select City</option>
+                        {pickupCities.map((city) => (
+                          <option key={city.value} value={city.value}>
+                            {city.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="pickup-city"
+                        id="pickup-city"
+                        className="form-control"
+                        placeholder="Enter city (optional)"
+                        value={quoteData.pickupCity}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            pickupCity: e.target.value,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <h3 className="form-section-title">Destination</h3>
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="destination-country">Country</label>
+                    <label htmlFor="destination-country">Country *</label>
                     <select
                       name="destination-country"
                       id="destination-country"
@@ -542,6 +456,87 @@ export default function QuotationPage() {
                         </option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="destination-state">State/Province</label>
+                    {destStates.length > 0 ? (
+                      <select
+                        name="destination-state"
+                        id="destination-state"
+                        className="form-control"
+                        value={quoteData.destinationState}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            destinationState: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select State/Province</option>
+                        {destStates.map((state) => (
+                          <option key={state.isoCode} value={state.value}>
+                            {state.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="destination-state"
+                        id="destination-state"
+                        className="form-control"
+                        placeholder="Enter state/province (optional)"
+                        value={quoteData.destinationState}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            destinationState: e.target.value,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="destination-city">City</label>
+                    {destCities.length > 0 ? (
+                      <select
+                        name="destination-city"
+                        id="destination-city"
+                        className="form-control"
+                        value={quoteData.destinationCity}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            destinationCity: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select City</option>
+                        {destCities.map((city) => (
+                          <option key={city.value} value={city.value}>
+                            {city.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="destination-city"
+                        id="destination-city"
+                        className="form-control"
+                        placeholder="Enter city (optional)"
+                        value={quoteData.destinationCity}
+                        onChange={(e) =>
+                          setQuoteData({
+                            ...quoteData,
+                            destinationCity: e.target.value,
+                          })
+                        }
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -566,504 +561,13 @@ export default function QuotationPage() {
                   </div>
                 </div>
 
-                <button type="submit" className="btn-calculate">
-                  CONTINUE TO SENDER DETAILS
+                <button
+                  type="submit"
+                  className="btn-calculate"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "CALCULATING..." : "GET QUOTE"}
                 </button>
-              </form>
-            )}
-
-            {/* Step 2: Sender Details */}
-            {activeTab === "international" && currentStep === "sender" && (
-              <form className="quotation-form" onSubmit={handleSenderSubmit}>
-                <h3 className="form-section-title">Sender Information</h3>
-
-                <div className="form-group">
-                  <label htmlFor="sender-name">Full Name *</label>
-                  <input
-                    type="text"
-                    id="sender-name"
-                    className="form-control"
-                    value={senderDetails.name}
-                    onChange={(e) =>
-                      setSenderDetails({
-                        ...senderDetails,
-                        name: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="sender-email">
-                    Email *
-                    {getAuthUser() && (
-                      <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                        (Auto-filled from your account)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="email"
-                    id="sender-email"
-                    className="form-control"
-                    value={senderDetails.email}
-                    onChange={(e) =>
-                      setSenderDetails({
-                        ...senderDetails,
-                        email: e.target.value,
-                      })
-                    }
-                    readOnly={!!getAuthUser()}
-                    style={getAuthUser() ? { backgroundColor: '#f0fdf4', cursor: 'not-allowed' } : {}}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="sender-phone">
-                    Phone Number *
-                    <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
-                      (Numbers only, include country code)
-                    </span>
-                  </label>
-                  <input
-                    type="tel"
-                    id="sender-phone"
-                    className="form-control"
-                    value={senderDetails.phone}
-                    onChange={(e) =>
-                      setSenderDetails({
-                        ...senderDetails,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., 2348133730145"
-                    pattern="\d+"
-                    title="Phone number must contain only numbers and include country code"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="sender-address">Address *</label>
-                  <textarea
-                    id="sender-address"
-                    className="form-control"
-                    rows={3}
-                    value={senderDetails.address}
-                    onChange={(e) =>
-                      setSenderDetails({
-                        ...senderDetails,
-                        address: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="sender-city">City *</label>
-                    <input
-                      type="text"
-                      id="sender-city"
-                      className="form-control"
-                      value={senderDetails.city}
-                      onChange={(e) =>
-                        setSenderDetails({
-                          ...senderDetails,
-                          city: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="sender-state">State/Province *</label>
-                    <input
-                      type="text"
-                      id="sender-state"
-                      className="form-control"
-                      value={senderDetails.state}
-                      onChange={(e) =>
-                        setSenderDetails({
-                          ...senderDetails,
-                          state: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="sender-country">
-                    Country *
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                      (Locked to pickup country - change in Step 1 if needed)
-                    </span>
-                  </label>
-                  <select
-                    id="sender-country"
-                    className="form-control"
-                    value={senderDetails.country || quoteData.pickupCountry}
-                    onChange={(e) =>
-                      setSenderDetails({
-                        ...senderDetails,
-                        country: e.target.value,
-                      })
-                    }
-                    disabled
-                    style={{ backgroundColor: '#f0fdf4', cursor: 'not-allowed' }}
-                    required
-                  >
-                    <option value="">Select Country</option>
-                    {COUNTRIES.map((country) => (
-                      <option 
-                        key={country.value} 
-                        value={country.value}
-                      >
-                        {country.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "1rem",
-                    flexDirection: "column",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep("basic")}
-                    style={{
-                      padding: "1rem",
-                      backgroundColor: "transparent",
-                      color: "#047857",
-                      border: "2px solid #047857",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontSize: "1rem",
-                      fontWeight: "bold",
-                      transition: "all 0.3s ease",
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f0fdf4";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    ← BACK
-                  </button>
-                  <button type="submit" className="btn-calculate">
-                    CONTINUE TO RECEIVER DETAILS
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Step 3: Receiver Details */}
-            {activeTab === "international" && currentStep === "receiver" && (
-              <form className="quotation-form" onSubmit={handleReceiverSubmit}>
-                <h3 className="form-section-title">Receiver Information</h3>
-
-                <div className="form-group">
-                  <label htmlFor="receiver-name">Full Name *</label>
-                  <input
-                    type="text"
-                    id="receiver-name"
-                    className="form-control"
-                    value={receiverDetails.name}
-                    onChange={(e) =>
-                      setReceiverDetails({
-                        ...receiverDetails,
-                        name: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="receiver-phone">
-                    Phone Number *
-                    <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
-                      (Numbers only, include country code)
-                    </span>
-                  </label>
-                  <input
-                    type="tel"
-                    id="receiver-phone"
-                    className="form-control"
-                    value={receiverDetails.phone}
-                    onChange={(e) =>
-                      setReceiverDetails({
-                        ...receiverDetails,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., 2348133730145"
-                    pattern="\d+"
-                    title="Phone number must contain only numbers and include country code"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="receiver-address">Address *</label>
-                  <textarea
-                    id="receiver-address"
-                    className="form-control"
-                    rows={3}
-                    value={receiverDetails.address}
-                    onChange={(e) =>
-                      setReceiverDetails({
-                        ...receiverDetails,
-                        address: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="receiver-city">City *</label>
-                    <input
-                      type="text"
-                      id="receiver-city"
-                      className="form-control"
-                      value={receiverDetails.city}
-                      onChange={(e) =>
-                        setReceiverDetails({
-                          ...receiverDetails,
-                          city: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="receiver-state">State/Province *</label>
-                    <input
-                      type="text"
-                      id="receiver-state"
-                      className="form-control"
-                      value={receiverDetails.state}
-                      onChange={(e) =>
-                        setReceiverDetails({
-                          ...receiverDetails,
-                          state: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="receiver-postcode">
-                      Post Code *
-                      <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
-                        (Numbers only)
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      id="receiver-postcode"
-                      className="form-control"
-                      value={receiverDetails.postCode}
-                      onChange={(e) =>
-                        setReceiverDetails({
-                          ...receiverDetails,
-                          postCode: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., 23467"
-                      pattern="\d+"
-                      title="Post code must contain only numbers"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="receiver-country">
-                      Country *
-                      <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
-                        (Locked to destination country - change in Step 1 if needed)
-                      </span>
-                    </label>
-                    <select
-                      id="receiver-country"
-                      className="form-control"
-                      value={receiverDetails.country || quoteData.destinationCountry}
-                      onChange={(e) =>
-                        setReceiverDetails({
-                          ...receiverDetails,
-                          country: e.target.value,
-                        })
-                      }
-                      disabled
-                      style={{ backgroundColor: '#f0fdf4', cursor: 'not-allowed' }}
-                      required
-                    >
-                      <option value="">Select Country</option>
-                      {COUNTRIES.map((country) => (
-                        <option 
-                          key={country.value} 
-                          value={country.value}
-                        >
-                          {country.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "1rem",
-                    flexDirection: "column",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep("sender")}
-                    style={{
-                      padding: "1rem",
-                      backgroundColor: "transparent",
-                      color: "#047857",
-                      border: "2px solid #047857",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontSize: "1rem",
-                      fontWeight: "bold",
-                      transition: "all 0.3s ease",
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f0fdf4";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    ← BACK
-                  </button>
-                  <button type="submit" className="btn-calculate">
-                    CONTINUE TO SHIPMENT DETAILS
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Step 4: Shipment Details */}
-            {activeTab === "international" && currentStep === "shipment" && (
-              <form className="quotation-form" onSubmit={handleShipmentSubmit}>
-                <h3 className="form-section-title">Shipment Information</h3>
-
-                <div className="form-group">
-                  <label htmlFor="shipment-description">
-                    Package Description *
-                  </label>
-                  <textarea
-                    id="shipment-description"
-                    className="form-control"
-                    rows={3}
-                    placeholder="Describe the contents of your shipment"
-                    value={shipmentDetails.description}
-                    onChange={(e) =>
-                      setShipmentDetails({
-                        ...shipmentDetails,
-                        description: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="shipment-quantity">Quantity *</label>
-                    <input
-                      type="number"
-                      id="shipment-quantity"
-                      className="form-control"
-                      min="1"
-                      value={shipmentDetails.quantity}
-                      onChange={(e) =>
-                        setShipmentDetails({
-                          ...shipmentDetails,
-                          quantity: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="shipment-value">
-                      Declared Value (Optional)
-                    </label>
-                    <input
-                      type="number"
-                      id="shipment-value"
-                      className="form-control"
-                      step="0.01"
-                      placeholder="USD"
-                      value={shipmentDetails.value}
-                      onChange={(e) =>
-                        setShipmentDetails({
-                          ...shipmentDetails,
-                          value: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "1rem",
-                    flexDirection: "column",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep("receiver")}
-                    style={{
-                      padding: "1rem",
-                      backgroundColor: "transparent",
-                      color: "#047857",
-                      border: "2px solid #047857",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontSize: "1rem",
-                      fontWeight: "bold",
-                      transition: "all 0.3s ease",
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#f0fdf4";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    ← BACK
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-calculate"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "CALCULATING..." : "GET PRICING"}
-                  </button>
-                </div>
               </form>
             )}
 
@@ -1200,9 +704,9 @@ export default function QuotationPage() {
                     <button
                       type="button"
                       className="btn-calculate"
-                      onClick={handleSelectDelivery}
+                      onClick={handleCreateOrder}
                     >
-                      CONTINUE TO REVIEW
+                      BOOK NOW
                     </button>
                     <button
                       type="button"
@@ -1231,220 +735,7 @@ export default function QuotationPage() {
                 </div>
               )}
 
-            {/* Step 6: Review & Confirm */}
-            {activeTab === "international" &&
-              currentStep === "review" &&
-              quotationResult && (
-                <div className="quotation-form">
-                  <h3 className="form-section-title">Review Your Booking</h3>
 
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      padding: "1.5rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: "700",
-                        color: "#047857",
-                        marginBottom: "1rem",
-                        paddingBottom: "0.5rem",
-                        borderBottom: "2px solid #e5e7eb",
-                      }}
-                    >
-                      Sender Details
-                    </h4>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Name:</strong> {senderDetails.name}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Email:</strong> {senderDetails.email}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Phone:</strong> {senderDetails.phone}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Address:</strong> {senderDetails.address}
-                    </div>
-                    <div style={{ fontSize: "0.9rem" }}>
-                      <strong>Location:</strong> {senderDetails.city},{" "}
-                      {senderDetails.state}, {senderDetails.country}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      padding: "1.5rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: "700",
-                        color: "#047857",
-                        marginBottom: "1rem",
-                        paddingBottom: "0.5rem",
-                        borderBottom: "2px solid #e5e7eb",
-                      }}
-                    >
-                      Receiver Details
-                    </h4>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Name:</strong> {receiverDetails.name}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Phone:</strong> {receiverDetails.phone}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Address:</strong> {receiverDetails.address}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Location:</strong> {receiverDetails.city},{" "}
-                      {receiverDetails.state}, {receiverDetails.country}
-                    </div>
-                    <div style={{ fontSize: "0.9rem" }}>
-                      <strong>Post Code:</strong> {receiverDetails.postCode}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: "#f9fafb",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      padding: "1.5rem",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: "700",
-                        color: "#047857",
-                        marginBottom: "1rem",
-                        paddingBottom: "0.5rem",
-                        borderBottom: "2px solid #e5e7eb",
-                      }}
-                    >
-                      Shipment Details
-                    </h4>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Description:</strong>{" "}
-                      {shipmentDetails.description}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Quantity:</strong> {shipmentDetails.quantity}
-                    </div>
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Weight:</strong> {quotationResult.weight} kg
-                    </div>
-                    {shipmentDetails.value && (
-                      <div
-                        style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}
-                      >
-                        <strong>Declared Value:</strong> $
-                        {shipmentDetails.value}
-                      </div>
-                    )}
-                    <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Delivery Speed:</strong>{" "}
-                      {selectedSpeed.toUpperCase()}
-                    </div>
-                    <div style={{ fontSize: "0.9rem" }}>
-                      <strong>Estimated Delivery:</strong>{" "}
-                      {
-                        quotationResult.delivery_options.find(
-                          (opt) => opt.speed === selectedSpeed,
-                        )?.estimated_delivery
-                      }
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #047857 0%, #065f46 100%)",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "1.5rem",
-                      marginBottom: "1.5rem",
-                      color: "white",
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: "700",
-                        marginBottom: "0.5rem",
-                      }}
-                    >
-                      Total Cost
-                    </h4>
-                    <div
-                      style={{
-                        fontSize: "2rem",
-                        fontWeight: "700",
-                        textAlign: "center",
-                      }}
-                    >
-                      {quotationResult.currency}{" "}
-                      {parseFloat(
-                        quotationResult.delivery_options.find(
-                          (opt) => opt.speed === selectedSpeed,
-                        )?.price || "0",
-                      ).toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "1rem",
-                      flexDirection: "column",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="btn-calculate"
-                      onClick={handleCreateOrder}
-                    >
-                      CONFIRM & PROCEED TO PAYMENT
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep("delivery")}
-                      style={{
-                        padding: "1rem",
-                        backgroundColor: "transparent",
-                        color: "#047857",
-                        border: "2px solid #047857",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontSize: "1rem",
-                        fontWeight: "bold",
-                        transition: "all 0.3s ease",
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = "#f0fdf4";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                    >
-                      ← BACK TO DELIVERY OPTIONS
-                    </button>
-                  </div>
-                </div>
-              )}
 
             {/* Local Form */}
             {activeTab === "local" && (

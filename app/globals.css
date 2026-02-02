@@ -349,7 +349,7 @@ nav {
 
 .btn-secondary {
     background-color: transparent;
-    color: var(--light-text);
+    color: var(--primary-green);
     padding: 1rem 2.5rem;
     border: 2px solid var(--accent-yellow);
     border-radius: var(--border-radius);
