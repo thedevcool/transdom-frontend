@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,17 +19,7 @@ function VerifyContent() {
   const [orderNo, setOrderNo] = useState("");
   const [orderDetails, setOrderDetails] = useState<any>(null);
 
-  useEffect(() => {
-    if (!reference) {
-      setStatus("failed");
-      setMessage("No payment reference found. Please try again.");
-      return;
-    }
-
-    verifyPaymentAndCreateOrder();
-  }, [reference]);
-
-  const verifyPaymentAndCreateOrder = async () => {
+  const verifyPaymentAndCreateOrder = useCallback(async () => {
     try {
       setStatus("loading");
       setMessage("Verifying your payment...");
@@ -116,7 +106,17 @@ function VerifyContent() {
           : "Something went wrong. Please contact support.",
       );
     }
-  };
+  }, [reference]);
+
+  useEffect(() => {
+    if (!reference) {
+      setStatus("failed");
+      setMessage("No payment reference found. Please try again.");
+      return;
+    }
+
+    verifyPaymentAndCreateOrder();
+  }, [reference, verifyPaymentAndCreateOrder]);
 
   return (
     <>

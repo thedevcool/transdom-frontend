@@ -621,7 +621,7 @@ export default function BookingPage() {
           <div className="quotation-text-content">
             <h1>Complete Your Booking</h1>
             <p>
-              Fill in the shipping details to complete your order. We've saved your quote information below.
+              Fill in the shipping details to complete your order. We&apos;ve saved your quote information below.
             </p>
 
             {/* Saved Quote Display */}
