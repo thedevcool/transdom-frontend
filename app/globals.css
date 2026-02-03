@@ -800,39 +800,42 @@ footer {
     display: flex;
     gap: 1rem;
     margin-top: 1rem;
+    align-items: center;
 }
 
 .social-icon {
     width: 34px;
     height: 34px;
-    background-color: var(--primary-green);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    display: grid;
+    place-items: center;
     color: var(--accent-yellow);
     text-decoration: none;
-    transition: background-color 0.3s;
+    transition: color 0.3s;
+    flex-shrink: 0;
+    overflow: visible;
+    padding: 0;
+    position: relative;
 }
 
 .social-icon > span {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    display: grid !important;
+    place-items: center !important;
     width: 100% !important;
     height: 100% !important;
-    position: relative !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .social-icon img {
     width: 18px !important;
     height: 18px !important;
     object-fit: contain !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .social-icon:hover {
-    background-color: var(--secondary-green);
+    color: var(--primary-green);
 }
 
 /* Responsive */
