@@ -4,6 +4,7 @@ import { useState, FormEvent, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
 
@@ -291,7 +292,7 @@ export default function SignUpPage() {
                     className="password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
                 </div>
               </div>
@@ -318,7 +319,7 @@ export default function SignUpPage() {
                     className="password-toggle"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
-                    {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                    {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
                 </div>
               </div>

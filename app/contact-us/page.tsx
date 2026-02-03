@@ -3,6 +3,8 @@
 import { useState, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Clock, Globe, Mail, MapPin, Phone } from 'lucide-react';
+import Footer from '@/app/components/Footer';
 
 export default function ContactUs() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -80,7 +82,9 @@ export default function ContactUs() {
               <h2>Contact Information</h2>
               
               <div className="contact-info-item">
-                <div className="contact-icon">🌐</div>
+                <div className="contact-icon">
+                  <Globe />
+                </div>
                 <div>
                   <h3>Website</h3>
                   <Link href="/">www.transdomlogistics.com</Link>
@@ -88,7 +92,9 @@ export default function ContactUs() {
               </div>
 
               <div className="contact-info-item">
-                <div className="contact-icon">✉️</div>
+                <div className="contact-icon">
+                  <Mail />
+                </div>
                 <div>
                   <h3>Email</h3>
                   <a href="mailto:support@transdomlogistics.com">support@transdomlogistics.com</a>
@@ -96,7 +102,9 @@ export default function ContactUs() {
               </div>
 
               <div className="contact-info-item">
-                <div className="contact-icon">📞</div>
+                <div className="contact-icon">
+                  <Phone />
+                </div>
                 <div>
                   <h3>Phone</h3>
                   <a href="tel:+15551234567">+1 (555) 123-4567</a>
@@ -104,7 +112,9 @@ export default function ContactUs() {
               </div>
 
               <div className="contact-info-item">
-                <div className="contact-icon">📍</div>
+                <div className="contact-icon">
+                  <MapPin />
+                </div>
                 <div>
                   <h3>Corporate Office</h3>
                   <p>123 Logistics Way, Business District<br />New York, NY 10001, USA</p>
@@ -112,7 +122,9 @@ export default function ContactUs() {
               </div>
 
               <div className="contact-info-item">
-                <div className="contact-icon">🕐</div>
+                <div className="contact-icon">
+                  <Clock />
+                </div>
                 <div>
                   <h3>Business Hours</h3>
                   <p>Monday - Friday: 9:00 AM - 6:00 PM<br />Saturday: 10:00 AM - 4:00 PM<br />Sunday: Closed</p>
@@ -186,52 +198,7 @@ export default function ContactUs() {
       </section>
 
       {/* Footer */}
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-section">
-            <div className="footer-logo">
-              <Image src="/assets/transdom_logo.svg" alt="Transdom Logistics" width={40} height={40} />
-            </div>
-            <p style={{ color: '#aaa', marginBottom: '1rem' }}>Leading logistics platform simplifying shipping to 200+ countries worldwide.</p>
-            <div className="social-links">
-              <a href="#" className="social-icon">f</a>
-              <a href="#" className="social-icon">t</a>
-              <a href="#" className="social-icon">in</a>
-              <a href="#" className="social-icon">ig</a>
-            </div>
-          </div>
-          <div className="footer-section">
-            <h4>Services</h4>
-            <ul>
-              <li><a href="#">International Shipping</a></li>
-              <li><a href="#">Local Delivery</a></li>
-              <li><a href="#">Cargo Services</a></li>
-              <li><a href="#">Tracking</a></li>
-            </ul>
-          </div>
-          <div className="footer-section">
-            <h4>Company</h4>
-            <ul>
-              <li><Link href="/about-us">About Us</Link></li>
-              <li><a href="#">Blog</a></li>
-              <li><a href="#">Careers</a></li>
-              <li><Link href="/contact-us">Contact Us</Link></li>
-            </ul>
-          </div>
-          <div className="footer-section">
-            <h4>Support</h4>
-            <ul>
-              <li><a href="#">Help Center</a></li>
-              <li><Link href="/faq">FAQ</Link></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">Privacy Policy</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <p>&copy; 2026 Transdom Logistics. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

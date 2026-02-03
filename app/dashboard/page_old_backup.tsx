@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
+import { AlertTriangle } from "lucide-react";
 
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
 
@@ -813,7 +814,9 @@ function DashboardContent() {
                           margin: 0,
                         }}
                       >
-                        ⚠️ {error}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                          <AlertTriangle size={16} /> {error}
+                        </span>
                       </p>
                     </div>
                   )}

@@ -3,6 +3,17 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  BadgeDollarSign,
+  BarChart3,
+  CheckCircle,
+  ClipboardList,
+  CreditCard,
+  Hand,
+  Package,
+  Truck,
+  Zap,
+} from "lucide-react";
 import { clearAuthSession, getAuthUser, hasValidAuth } from "@/lib/auth";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -282,11 +293,15 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="welcome-section">
           <div className="welcome-content">
-            <h1>Welcome back, {user?.firstname}! 👋</h1>
+            <h1>
+              Welcome back, {user?.firstname}! <Hand size={20} />
+            </h1>
             <p>Here&amp;s an overview of your shipments and activity.</p>
           </div>
           <Link href="/quotation" className="btn-new-shipment">
-            <span className="btn-icon">📦</span>
+            <span className="btn-icon">
+              <Package size={18} />
+            </span>
             New Shipment
           </Link>
         </div>
@@ -295,7 +310,9 @@ export default function Dashboard() {
         {quotation && quotationPricing && (
           <div className="quotation-card">
             <div className="quotation-header">
-              <h2>📋 Pending Quotation</h2>
+              <h2>
+                <ClipboardList size={18} /> Pending Quotation
+              </h2>
               <button onClick={handleClearQuotation} className="btn-clear">
                 Clear
               </button>
@@ -333,10 +350,14 @@ export default function Dashboard() {
                         {option.speed.toUpperCase()}
                       </span>
                       {option.speed === "express" && (
-                        <span className="badge-fast">⚡ Fastest</span>
+                        <span className="badge-fast">
+                          <Zap size={14} /> Fastest
+                        </span>
                       )}
                       {option.speed === "economy" && (
-                        <span className="badge-cheap">💰 Cheapest</span>
+                        <span className="badge-cheap">
+                          <BadgeDollarSign size={14} /> Cheapest
+                        </span>
                       )}
                     </div>
                     <div className="option-price">
@@ -359,7 +380,7 @@ export default function Dashboard() {
             </div>
 
             <button onClick={handleMakeOrder} className="btn-proceed-payment">
-              💳 Proceed to Payment
+              <CreditCard size={16} /> Proceed to Payment
             </button>
           </div>
         )}
@@ -377,7 +398,7 @@ export default function Dashboard() {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#d1fae5" }}>
-              <span style={{ fontSize: "24px" }}>📊</span>
+              <BarChart3 size={24} />
             </div>
             <div className="stat-content">
               <p className="stat-label">Total Shipments</p>
@@ -388,7 +409,7 @@ export default function Dashboard() {
 
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#fef3c7" }}>
-              <span style={{ fontSize: "24px" }}>🚚</span>
+              <Truck size={24} />
             </div>
             <div className="stat-content">
               <p className="stat-label">Active Shipments</p>
@@ -399,7 +420,7 @@ export default function Dashboard() {
 
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#a7f3d0" }}>
-              <span style={{ fontSize: "24px" }}>✅</span>
+              <CheckCircle size={24} />
             </div>
             <div className="stat-content">
               <p className="stat-label">Delivered</p>
@@ -410,7 +431,7 @@ export default function Dashboard() {
 
           <div className="stat-card">
             <div className="stat-icon" style={{ backgroundColor: "#d1fae5" }}>
-              <span style={{ fontSize: "24px" }}>💰</span>
+              <BadgeDollarSign size={24} />
             </div>
             <div className="stat-content">
               <p className="stat-label">Total Spent</p>
@@ -474,7 +495,9 @@ export default function Dashboard() {
               </table>
             ) : (
               <div className="empty-state">
-                <div className="empty-icon">📦</div>
+                <div className="empty-icon">
+                  <Package size={48} />
+                </div>
                 <h3>No shipments yet</h3>
                 <p>Start by getting a quotation for your first shipment.</p>
                 <Link href="/quotation" className="btn-get-started">

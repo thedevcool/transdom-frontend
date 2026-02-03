@@ -7,6 +7,7 @@ import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { useRouter } from "next/navigation";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
+import { AlertTriangle, Lightbulb, MapPin } from "lucide-react";
 import { 
   getCountryIsoCode, 
   getStatesOfCountry, 
@@ -557,7 +558,9 @@ export default function BookingPage() {
             animation: "slideUp 0.3s ease",
             textAlign: "center",
           }}>
-            <div style={{ fontSize: "64px", marginBottom: "1rem" }}>📍</div>
+            <div style={{ marginBottom: "1rem" }}>
+              <MapPin size={64} />
+            </div>
             <h2 style={{
               fontSize: "28px",
               fontWeight: "700",
@@ -1235,7 +1238,10 @@ export default function BookingPage() {
                     <div style={{ marginTop: "1rem", paddingLeft: "32px" }}>
                       {!shipmentDetails.value ? (
                         <p style={{ color: "#d97706", fontSize: "0.9rem" }}>
-                          ⚠️ Please enter a shipment value in the previous step to calculate insurance.
+                          <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                            <AlertTriangle size={16} />
+                          </span>
+                          Please enter a shipment value in the previous step to calculate insurance.
                         </p>
                       ) : (
                         <div>
@@ -1257,7 +1263,10 @@ export default function BookingPage() {
                             </div>
                           </div>
                           <p style={{ fontSize: "0.85rem", color: "#6b7280", lineHeight: "1.5" }}>
-                            💡 Insurance is calculated at 2% of shipment value with a minimum fee of ₦500.
+                            <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                              <Lightbulb size={16} />
+                            </span>
+                            Insurance is calculated at 2% of shipment value with a minimum fee of ₦500.
                           </p>
                         </div>
                       )}
@@ -1274,7 +1283,10 @@ export default function BookingPage() {
                   fontSize: "0.9rem",
                   color: "#1e40af",
                 }}>
-                  📍 <strong>Drop-off Information:</strong> You can drop off your package at any of our hub locations. Visit our Contact Us page for hub addresses.
+                  <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                    <MapPin size={16} />
+                  </span>
+                  <strong>Drop-off Information:</strong> You can drop off your package at any of our hub locations. Visit our Contact Us page for hub addresses.
                 </div>
 
                 <div

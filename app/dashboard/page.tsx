@@ -4,6 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import {
+  BadgeDollarSign,
+  BarChart3,
+  CheckCircle,
+  FileText,
+  Hand,
+  Inbox,
+  MapPin,
+  Package,
+  Send,
+  Truck,
+} from "lucide-react";
 import { getAuthUser, hasValidAuth, clearAuthSession } from "@/lib/auth";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -170,11 +182,15 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <div className="welcome-section">
           <div className="welcome-content">
-            <h1>Welcome back, {user?.firstname}! 👋</h1>
+            <h1>
+              Welcome back, {user?.firstname}! <Hand size={20} />
+            </h1>
             <p>Here&apos;s an overview of your shipments and activity.</p>
           </div>
           <Link href="/quotation" className="btn-new-shipment">
-            <span className="btn-icon">📦</span>
+            <span className="btn-icon">
+              <Package size={20} />
+            </span>
             New Shipment
           </Link>
         </div>
@@ -185,7 +201,9 @@ export default function Dashboard() {
             className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
-            <span className="tab-icon">📊</span>
+            <span className="tab-icon">
+              <BarChart3 size={20} />
+            </span>
             Overview
           </button>
           <button
@@ -193,7 +211,9 @@ export default function Dashboard() {
             onClick={() => setActiveTab("quotation")}
             disabled={!basicQuote}
           >
-            <span className="tab-icon">📝</span>
+            <span className="tab-icon">
+              <FileText size={20} />
+            </span>
             Pending Quote
             {basicQuote && <span className="badge">1</span>}
           </button>
@@ -205,14 +225,18 @@ export default function Dashboard() {
             {/* Statistics Cards */}
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-icon">📦</div>
+                <div className="stat-icon">
+                  <Package size={28} />
+                </div>
                 <div className="stat-content">
                   <div className="stat-label">Total Shipments</div>
                   <div className="stat-value">{shipments.length}</div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">🚚</div>
+                <div className="stat-icon">
+                  <Truck size={28} />
+                </div>
                 <div className="stat-content">
                   <div className="stat-label">In Transit</div>
                   <div className="stat-value">
@@ -221,7 +245,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">✅</div>
+                <div className="stat-icon">
+                  <CheckCircle size={28} />
+                </div>
                 <div className="stat-content">
                   <div className="stat-label">Delivered</div>
                   <div className="stat-value">
@@ -230,7 +256,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">💰</div>
+                <div className="stat-icon">
+                  <BadgeDollarSign size={28} />
+                </div>
                 <div className="stat-content">
                   <div className="stat-label">Total Spent</div>
                   <div className="stat-value">
@@ -282,7 +310,9 @@ export default function Dashboard() {
                       <div className="shipment-details">
                         <div className="detail-row">
                           <div className="detail-item">
-                            <span className="detail-icon">📤</span>
+                            <span className="detail-icon">
+                              <Send size={18} />
+                            </span>
                             <div>
                               <div className="detail-label">From</div>
                               <div className="detail-value">{shipment.sender_name}</div>
@@ -291,7 +321,9 @@ export default function Dashboard() {
                           </div>
                           <div className="detail-divider">→</div>
                           <div className="detail-item">
-                            <span className="detail-icon">📥</span>
+                            <span className="detail-icon">
+                              <Inbox size={18} />
+                            </span>
                             <div>
                               <div className="detail-label">To</div>
                               <div className="detail-value">{shipment.receiver_name}</div>
@@ -328,7 +360,7 @@ export default function Dashboard() {
                               href={`/receipt/${shipment.order_no}`}
                               className="btn-view-receipt"
                             >
-                              📄 View Receipt
+                              <FileText size={16} /> View Receipt
                             </Link>
                           </div>
                         )}
@@ -338,7 +370,9 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="empty-shipments">
-                  <div className="empty-icon">📦</div>
+                  <div className="empty-icon">
+                    <Package size={48} />
+                  </div>
                   <h3>No Shipments Yet</h3>
                   <p>Start by creating your first shipping quotation.</p>
                   <Link href="/quotation" className="btn-get-started">
@@ -363,7 +397,9 @@ export default function Dashboard() {
             <div className="quote-summary">
               <div className="quote-route">
                 <div className="route-point">
-                  <span className="route-icon">📍</span>
+                  <span className="route-icon">
+                    <MapPin size={18} />
+                  </span>
                   <div>
                     <div className="route-label">From</div>
                     <div className="route-value">{basicQuote.pickup_country}</div>
@@ -376,7 +412,9 @@ export default function Dashboard() {
                 </div>
                 <div className="route-arrow">→</div>
                 <div className="route-point">
-                  <span className="route-icon">📍</span>
+                  <span className="route-icon">
+                    <MapPin size={18} />
+                  </span>
                   <div>
                     <div className="route-label">To</div>
                     <div className="route-value">{basicQuote.destination_country}</div>
@@ -427,7 +465,9 @@ export default function Dashboard() {
         {/* No Quotation in Quotation Tab */}
         {activeTab === "quotation" && !basicQuote && (
           <div className="empty-state">
-            <div className="empty-icon">📝</div>
+            <div className="empty-icon">
+              <FileText size={48} />
+            </div>
             <h3>No Pending Quote</h3>
             <p>You don&apos;t have any pending quotes at the moment.</p>
             <Link href="/quotation" className="btn-get-started">
@@ -648,6 +688,13 @@ export default function Dashboard() {
 
         .btn-icon {
           font-size: 20px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .btn-icon svg {
+          width: 20px;
+          height: 20px;
         }
 
         /* Tab Navigation */
@@ -697,6 +744,13 @@ export default function Dashboard() {
 
         .tab-icon {
           font-size: 20px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .tab-icon svg {
+          width: 20px;
+          height: 20px;
         }
 
         .badge {
@@ -746,6 +800,12 @@ export default function Dashboard() {
           display: flex;
           align-items: center;
           justify-content: center;
+          color: #ffffff;
+        }
+
+        .stat-icon svg {
+          width: 28px;
+          height: 28px;
         }
 
         .stat-content {
@@ -930,6 +990,14 @@ export default function Dashboard() {
 
         .detail-icon {
           font-size: 24px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .detail-icon svg {
+          width: 18px;
+          height: 18px;
+          color: #047857;
         }
 
         .detail-label {
@@ -1025,6 +1093,14 @@ export default function Dashboard() {
           font-size: 64px;
           margin-bottom: 1rem;
           opacity: 0.5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .empty-icon svg {
+          width: 64px;
+          height: 64px;
         }
 
         .empty-shipments h3 {
@@ -1108,6 +1184,14 @@ export default function Dashboard() {
 
         .route-icon {
           font-size: 32px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .route-icon svg {
+          width: 18px;
+          height: 18px;
+          color: #059669;
         }
 
         .route-label {

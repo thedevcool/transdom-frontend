@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Globe, Rocket, Target, Zap } from "lucide-react";
+import Footer from "@/app/components/Footer";
 
 export default function AboutUs() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -93,7 +95,11 @@ export default function AboutUs() {
             <h2>Who are we?</h2>
             <p>
               We are a digital platform built for businesses and people to send
-              parcels to anyone anywhere in the world⚡️. Transdom Logistics is
+              parcels to anyone anywhere in the world
+              <span className="inline-icon">
+                <Zap size={16} />
+              </span>
+              . Transdom Logistics is
               the easiest way for businesses to ship Worldwide. We are building
               the Infrastructure for Logistics to enable businesses to access
               the global economy.
@@ -169,7 +175,9 @@ export default function AboutUs() {
 
           <div className="mission-vision-grid">
             <div className="mission-card">
-              <div className="mission-icon">🎯</div>
+              <div className="mission-icon">
+                <Target />
+              </div>
               <h3>Our Mission</h3>
               <p>
                 Our mission is to simplify the shipping process for businesses
@@ -178,7 +186,9 @@ export default function AboutUs() {
             </div>
 
             <div className="mission-card">
-              <div className="mission-icon">🚀</div>
+              <div className="mission-icon">
+                <Rocket />
+              </div>
               <h3>Our Vision</h3>
               <p>
                 Transdom Logistics aims to be the leading logistics
@@ -188,7 +198,9 @@ export default function AboutUs() {
             </div>
 
             <div className="mission-card">
-              <div className="mission-icon">🌍</div>
+              <div className="mission-icon">
+                <Globe />
+              </div>
               <h3>Global Reach</h3>
               <p>
                 Send parcels to any destination across the globe with our
@@ -222,92 +234,7 @@ export default function AboutUs() {
       </section>
 
       {/* Footer */}
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-section">
-            <div className="footer-logo">
-              <Image
-                src="/assets/transdom_logo.svg"
-                alt="Transdom Logistics"
-                width={40}
-                height={40}
-              />
-            </div>
-            <p style={{ color: "#aaa", marginBottom: "1rem" }}>
-              Leading logistics platform simplifying shipping to 200+ countries
-              worldwide.
-            </p>
-            <div className="social-links">
-              <a href="#" className="social-icon">
-                f
-              </a>
-              <a href="#" className="social-icon">
-                t
-              </a>
-              <a href="#" className="social-icon">
-                in
-              </a>
-              <a href="#" className="social-icon">
-                ig
-              </a>
-            </div>
-          </div>
-          <div className="footer-section">
-            <h4>Services</h4>
-            <ul>
-              <li>
-                <a href="#">International Shipping</a>
-              </li>
-              <li>
-                <a href="#">Local Delivery</a>
-              </li>
-              <li>
-                <a href="#">Cargo Services</a>
-              </li>
-              <li>
-                <a href="#">Tracking</a>
-              </li>
-            </ul>
-          </div>
-          <div className="footer-section">
-            <h4>Company</h4>
-            <ul>
-              <li>
-                <Link href="/about-us">About Us</Link>
-              </li>
-              <li>
-                <a href="#">Blog</a>
-              </li>
-              <li>
-                <a href="#">Careers</a>
-              </li>
-              <li>
-                <Link href="/contact-us">Contact Us</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="footer-section">
-            <h4>Support</h4>
-            <ul>
-              <li>
-                <a href="#">Help Center</a>
-              </li>
-              <li>
-                <Link href="/faq">FAQ</Link>
-              </li>
-              <li>
-                <a href="#">Terms of Service</a>
-              </li>
-              <li>
-                <a href="#">Privacy Policy</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <p>&copy; 2026 Transdom Logistics. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

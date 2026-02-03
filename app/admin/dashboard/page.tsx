@@ -4,6 +4,19 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  BadgeDollarSign,
+  CheckCircle,
+  Clock,
+  LogOut,
+  MailX,
+  Inbox,
+  Package,
+  RefreshCw,
+  Send,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 
 interface Order {
   _id: string;
@@ -287,13 +300,13 @@ export default function AdminDashboard() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
-        return "⏳";
+        return <Clock size={16} />;
       case "approved":
-        return "✅";
+        return <CheckCircle size={16} />;
       case "rejected":
-        return "❌";
+        return <XCircle size={16} />;
       default:
-        return "📦";
+        return <Package size={16} />;
     }
   };
 
@@ -309,7 +322,9 @@ export default function AdminDashboard() {
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "48px", marginBottom: "1rem" }}>⏳</div>
+          <div style={{ marginBottom: "1rem" }}>
+            <Clock size={48} />
+          </div>
           <p style={{ color: "#6b7280", fontSize: "18px" }}>
             Loading admin dashboard...
           </p>
@@ -374,7 +389,7 @@ export default function AdminDashboard() {
               cursor: "pointer",
             }}
           >
-            🚪 Logout
+            <LogOut size={16} /> Logout
           </button>
         </div>
       </header>
@@ -431,7 +446,9 @@ export default function AdminDashboard() {
                   {stats.totalOrders}
                 </p>
               </div>
-              <div style={{ fontSize: "48px" }}>📦</div>
+              <div>
+                <Package size={48} />
+              </div>
             </div>
           </div>
 
@@ -476,7 +493,9 @@ export default function AdminDashboard() {
                   {stats.pendingOrders}
                 </p>
               </div>
-              <div style={{ fontSize: "48px" }}>⏳</div>
+              <div>
+                <Clock size={48} />
+              </div>
             </div>
           </div>
 
@@ -521,7 +540,9 @@ export default function AdminDashboard() {
                   {stats.approvedOrders}
                 </p>
               </div>
-              <div style={{ fontSize: "48px" }}>✅</div>
+              <div>
+                <CheckCircle size={48} />
+              </div>
             </div>
           </div>
 
@@ -566,7 +587,9 @@ export default function AdminDashboard() {
                   {stats.rejectedOrders}
                 </p>
               </div>
-              <div style={{ fontSize: "48px" }}>❌</div>
+              <div>
+                <XCircle size={48} />
+              </div>
             </div>
           </div>
 
@@ -610,7 +633,9 @@ export default function AdminDashboard() {
                   ₦{stats.totalRevenue.toLocaleString()}
                 </p>
               </div>
-              <div style={{ fontSize: "48px" }}>💰</div>
+              <div>
+                <BadgeDollarSign size={48} />
+              </div>
             </div>
           </div>
         </div>
@@ -719,7 +744,9 @@ export default function AdminDashboard() {
                 gap: "0.5rem",
               }}
             >
-              <span style={{ fontSize: "20px" }}>🔄</span>
+              <span style={{ display: "inline-flex", alignItems: "center" }}>
+                <RefreshCw size={20} />
+              </span>
               <span>Refresh</span>
             </button>
           </div>
@@ -758,7 +785,9 @@ export default function AdminDashboard() {
 
           {filteredOrders.length === 0 ? (
             <div style={{ padding: "3rem", textAlign: "center" }}>
-              <div style={{ fontSize: "64px", marginBottom: "1rem" }}>📭</div>
+              <div style={{ marginBottom: "1rem" }}>
+                <MailX size={64} />
+              </div>
               <p style={{ color: "#6b7280", fontSize: "18px" }}>
                 No orders found
               </p>
@@ -1179,7 +1208,10 @@ export default function AdminDashboard() {
                       gap: "0.5rem",
                     }}
                   >
-                    <span style={{ fontSize: "24px" }}>📤</span> Sender
+                    <span style={{ display: "inline-flex", alignItems: "center" }}>
+                      <Send size={20} />
+                    </span>
+                    {" "}Sender
                     Information
                   </h3>
                   <div style={{ fontSize: "14px" }}>
@@ -1248,7 +1280,10 @@ export default function AdminDashboard() {
                       gap: "0.5rem",
                     }}
                   >
-                    <span style={{ fontSize: "24px" }}>📥</span> Receiver
+                    <span style={{ display: "inline-flex", alignItems: "center" }}>
+                      <Inbox size={20} />
+                    </span>
+                    {" "}Receiver
                     Information
                   </h3>
                   <div style={{ fontSize: "14px" }}>
@@ -1319,7 +1354,10 @@ export default function AdminDashboard() {
                     gap: "0.5rem",
                   }}
                 >
-                  <span style={{ fontSize: "24px" }}>📦</span> Shipment Details
+                  <span style={{ display: "inline-flex", alignItems: "center" }}>
+                    <Package size={20} />
+                  </span>
+                  {" "}Shipment Details
                 </h3>
                 <div
                   style={{
@@ -1414,7 +1452,10 @@ export default function AdminDashboard() {
                     gap: "0.5rem",
                   }}
                 >
-                  <span style={{ fontSize: "24px" }}>💰</span> Payment
+                  <span style={{ display: "inline-flex", alignItems: "center" }}>
+                    <BadgeDollarSign size={20} />
+                  </span>
+                  {" "}Payment
                   Information
                 </h3>
                 <div
@@ -1442,7 +1483,9 @@ export default function AdminDashboard() {
                       ₦{selectedOrder.amount_paid.toLocaleString()}
                     </p>
                   </div>
-                  <div style={{ fontSize: "48px" }}>✅</div>
+                  <div>
+                    <CheckCircle size={48} />
+                  </div>
                 </div>
               </div>
 
@@ -1493,7 +1536,7 @@ export default function AdminDashboard() {
                         (e.currentTarget.style.backgroundColor = "#16a34a")
                       }
                     >
-                      ✅ Approve Order
+                      <CheckCircle size={16} /> Approve Order
                     </button>
                   )}
 
@@ -1523,7 +1566,7 @@ export default function AdminDashboard() {
                         (e.currentTarget.style.backgroundColor = "#dc2626")
                       }
                     >
-                      ❌ Reject Order
+                      <XCircle size={16} /> Reject Order
                     </button>
                   )}
 
@@ -1553,7 +1596,7 @@ export default function AdminDashboard() {
                         (e.currentTarget.style.backgroundColor = "#ca8a04")
                       }
                     >
-                      ⏳ Set to Pending
+                      <Clock size={16} /> Set to Pending
                     </button>
                   )}
                 </div>
@@ -1591,7 +1634,7 @@ export default function AdminDashboard() {
                       (e.currentTarget.style.backgroundColor = "#b91c1c")
                     }
                   >
-                    🗑️ Delete Order
+                    <Trash2 size={16} /> Delete Order
                   </button>
 
                   <button

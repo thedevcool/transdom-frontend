@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     return nextResponse;
   } catch (error) {
-    console.error("❌ Login error:", error);
+    console.error("Login error:", error);
 
     // Don't expose internal error details in production
     const isProduction = process.env.NODE_ENV === "production";

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
+import { AlertTriangle, CreditCard, Lock } from "lucide-react";
 
 interface PaymentInitResponse {
   status: string;
@@ -361,7 +362,9 @@ function PaymentContent() {
               }}
             >
               <p style={{ fontSize: "14px", color: "#065f46", margin: 0 }}>
-                💳 Payment will be processed for <strong>{user.email}</strong>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <CreditCard size={16} /> Payment will be processed for <strong>{user.email}</strong>
+                </span>
               </p>
             </div>
 
@@ -377,7 +380,9 @@ function PaymentContent() {
                 }}
               >
                 <p style={{ fontSize: "14px", color: "#dc2626", margin: 0 }}>
-                  ⚠️ {error}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                    <AlertTriangle size={16} /> {error}
+                  </span>
                 </p>
               </div>
             )}
@@ -430,7 +435,9 @@ function PaymentContent() {
                 textAlign: "center",
               }}
             >
-              🔒 Secure payment powered by Paystack. Your payment information is
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <Lock size={14} /> Secure payment powered by Paystack. Your payment information is
+              </span>
               encrypted and secure.
             </p>
           </div>

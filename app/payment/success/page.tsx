@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { Mail } from "lucide-react";
 
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
 const BOOKING_STORAGE_KEY = "transdom_booking_details";
@@ -431,8 +432,10 @@ function VerifyContent() {
                   }}
                 >
                   <p style={{ fontSize: "14px", color: "#065f46", margin: 0 }}>
-                    📧 A confirmation email has been sent to your registered
-                    email address.
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                      <Mail size={16} /> A confirmation email has been sent to your registered
+                      email address.
+                    </span>
                   </p>
                 </div>
 
@@ -622,7 +625,9 @@ function VerifyContent() {
                       display: "block",
                     }}
                   >
-                    📧 Contact Support
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                      <Mail size={16} /> Contact Support
+                    </span>
                   </a>
                 </div>
               </>

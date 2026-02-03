@@ -1,19 +1,35 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer>
+    <footer className="footer">
       <div className="footer-content">
         <div className="footer-section">
-          <h4>About Transdom</h4>
+          <div className="footer-logo" aria-label="Transdom Logistics">
+            <Image
+              src="/assets/transdom_logo.svg"
+              alt="Transdom Logistics"
+              width={160}
+              height={36}
+            />
+          </div>
           <p style={{ color: '#aaa', marginBottom: '1rem' }}>Leading logistics platform simplifying shipping to 200+ countries worldwide.</p>
           <div className="social-links">
-            <a href="#" className="social-icon">f</a>
-            <a href="#" className="social-icon">t</a>
-            <a href="#" className="social-icon">in</a>
-            <a href="#" className="social-icon">ig</a>
+            <a href="#" className="social-icon" aria-label="Facebook">
+              <Image src="/assets/facebook.svg" alt="Facebook" width={18} height={18} />
+            </a>
+            <a href="#" className="social-icon" aria-label="Telegram">
+              <Image src="/assets/telegram.svg" alt="Telegram" width={18} height={18} />
+            </a>
+            <a href="#" className="social-icon" aria-label="LinkedIn">
+              <Image src="/assets/linkedin.svg" alt="LinkedIn" width={18} height={18} />
+            </a>
+            <a href="#" className="social-icon" aria-label="Instagram">
+              <Image src="/assets/instagram.svg" alt="Instagram" width={18} height={18} />
+            </a>
           </div>
         </div>
         <div className="footer-section">

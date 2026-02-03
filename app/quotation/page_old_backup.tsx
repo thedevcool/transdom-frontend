@@ -7,6 +7,7 @@ import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { useRouter } from "next/navigation";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
+import { Package, Truck } from "lucide-react";
 
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
@@ -1185,7 +1186,9 @@ export default function QuotationPage() {
                           </div>
                         </div>
                         <div style={{ fontSize: "0.9rem", color: "#666" }}>
-                          📦 Estimated delivery: {option.estimated_delivery}
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                            <Package size={14} /> Estimated delivery: {option.estimated_delivery}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -1468,7 +1471,9 @@ export default function QuotationPage() {
                 >
                   Local delivery calculator will be available soon. Stay tuned!
                 </p>
-                <div style={{ fontSize: "3rem", opacity: "0.3" }}>🚚</div>
+                <div style={{ opacity: "0.3" }}>
+                  <Truck size={48} />
+                </div>
               </div>
             )}
           </div>

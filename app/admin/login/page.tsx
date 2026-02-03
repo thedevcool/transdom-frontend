@@ -4,6 +4,7 @@ import { useState, FormEvent, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -154,7 +155,7 @@ export default function AdminLoginPage() {
                     className="password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
                 </div>
               </div>
@@ -169,7 +170,11 @@ export default function AdminLoginPage() {
                 }}
               >
                 {success
-                  ? "✓ Success! Redirecting..."
+                  ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                      <CheckCircle size={18} /> Success! Redirecting...
+                    </span>
+                  )
                   : loading
                     ? "Signing In..."
                     : "Sign In to Admin Portal"}
@@ -189,7 +194,9 @@ export default function AdminLoginPage() {
                   fontWeight: "500",
                 }}
               >
-                ⚠️ {error}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <AlertTriangle size={16} /> {error}
+                </span>
               </div>
             )}
 
@@ -205,7 +212,9 @@ export default function AdminLoginPage() {
                   fontWeight: "500",
                 }}
               >
-                ✓ Login successful! Redirecting to dashboard...
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <CheckCircle size={16} /> Login successful! Redirecting to dashboard...
+                </span>
               </div>
             )}
 
@@ -228,7 +237,9 @@ export default function AdminLoginPage() {
               }}
             >
               <p style={{ fontSize: "12px", color: "#92400e", margin: 0 }}>
-                🔒 This is a secure admin area. All actions are logged and
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Lock size={14} /> This is a secure admin area. All actions are logged and
+                </span>
                 monitored.
               </p>
             </div>
@@ -258,7 +269,9 @@ export default function AdminLoginPage() {
             </div>
 
             {/* Admin Icon */}
-            <div style={{ fontSize: "64px", marginTop: "2rem" }}>🔐</div>
+            <div style={{ marginTop: "2rem" }}>
+              <Lock size={64} />
+            </div>
           </div>
         </div>
       </div>

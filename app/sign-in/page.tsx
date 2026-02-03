@@ -4,6 +4,7 @@ import { useState, FormEvent, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, Eye, EyeOff } from "lucide-react";
 
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
 
@@ -197,7 +198,7 @@ export default function SignIn() {
                     className="password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? "👁️" : "👁️‍🗨️"}
+                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
                 </div>
               </div>
@@ -233,7 +234,9 @@ export default function SignIn() {
                   fontWeight: "500",
                 }}
               >
-                ⚠️ {error}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <AlertTriangle size={16} /> {error}
+                </span>
               </div>
             )}
 

@@ -674,6 +674,7 @@ footer {
     display: flex;
     gap: 1rem;
     margin-top: 1rem;
+    padding: auto;
 }
 
 .social-icon {

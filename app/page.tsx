@@ -3,6 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  BadgeDollarSign,
+  CheckCircle,
+  Globe,
+  MapPin,
+  Package,
+  Truck,
+} from "lucide-react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 
@@ -79,7 +87,9 @@ export default function Home() {
         </p>
         <div className="features-grid">
           <div className="feature-card">
-            <div className="feature-icon">🌍</div>
+            <div className="feature-icon">
+              <Globe />
+            </div>
             <h3>Global Reach</h3>
             <p>
               Access shipping to over 200 countries worldwide with our extensive
@@ -87,7 +97,9 @@ export default function Home() {
             </p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">💰</div>
+            <div className="feature-icon">
+              <BadgeDollarSign />
+            </div>
             <h3>Discounted Rates</h3>
             <p>
               Save up to 55% on shipping costs with our competitive pricing and
@@ -95,7 +107,9 @@ export default function Home() {
             </p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">📦</div>
+            <div className="feature-icon">
+              <Package />
+            </div>
             <h3>Multiple Options</h3>
             <p>
               Choose from express, standard, or economy delivery options based
@@ -103,7 +117,9 @@ export default function Home() {
             </p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">🚚</div>
+            <div className="feature-icon">
+              <Truck />
+            </div>
             <h3>Door-to-Door Service</h3>
             <p>
               Convenient pickup and delivery directly from your location with
@@ -111,7 +127,9 @@ export default function Home() {
             </p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">📍</div>
+            <div className="feature-icon">
+              <MapPin />
+            </div>
             <h3>Real-Time Tracking</h3>
             <p>
               Monitor your shipments 24/7 with live tracking updates and
@@ -119,7 +137,9 @@ export default function Home() {
             </p>
           </div>
           <div className="feature-card">
-            <div className="feature-icon">✅</div>
+            <div className="feature-icon">
+              <CheckCircle />
+            </div>
             <h3>Reliability</h3>
             <p>
               Trusted by thousands of businesses for secure, timely, and
@@ -166,24 +186,32 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="stats">
-        <div className="stats-container">
-          <div className="stat">
-            <div className="stat-number">200+</div>
-            <div className="stat-label">Countries Covered</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">50k+</div>
-            <div className="stat-label">Happy Customers</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">99%</div>
-            <div className="stat-label">On-Time Delivery</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">24/7</div>
-            <div className="stat-label">Customer Support</div>
+      {/* Partners Section */}
+      <section className="partners" aria-label="Trusted shipping partners">
+        <h2 className="section-title">Our Partners</h2>
+        <p className="section-subtitle">
+          We work with leading carriers to deliver worldwide
+        </p>
+        <div className="partner-carousel" role="region" aria-live="off">
+          <div className="partner-track">
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
+            </div>
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+            </div>
+            <div className="partner-logo">
+              <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />
+            </div>
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
+            </div>
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+            </div>
+            <div className="partner-logo">
+              <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />
+            </div>
           </div>
         </div>
       </section>

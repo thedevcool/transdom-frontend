@@ -102,17 +102,17 @@ export default function Header() {
         </button>
         <ul className={`nav-links ${mobileMenuOpen ? "active" : ""}`}>
           <li>
-            <Link href="/#about" onClick={closeMobileMenu}>
+            <Link href="/about-us" onClick={closeMobileMenu}>
               About Us
             </Link>
           </li>
           <li>
-            <Link href="/#faq" onClick={closeMobileMenu}>
+            <Link href="/faq" onClick={closeMobileMenu}>
               FAQs
             </Link>
           </li>
           <li>
-            <Link href="/#contact" onClick={closeMobileMenu}>
+            <Link href="/contact-us" onClick={closeMobileMenu}>
               Contact Us
             </Link>
           </li>

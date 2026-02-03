@@ -7,6 +7,15 @@ import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import {
+  BadgeDollarSign,
+  CheckCircle,
+  Download,
+  Inbox,
+  Package,
+  Printer,
+  Send,
+} from "lucide-react";
 
 interface OrderDetails {
   _id: string;
@@ -191,14 +200,18 @@ export default function ReceiptPage() {
           </button>
           <div className="action-buttons">
             <button onClick={handlePrint} className="btn-print">
-              🖨️ Print
+              <Printer size={16} /> Print
             </button>
             <button 
               onClick={handleDownloadPDF} 
               className="btn-download"
               disabled={downloading}
             >
-              {downloading ? "Generating PDF..." : "📥 Download PDF"}
+              {downloading ? "Generating PDF..." : (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Download size={16} /> Download PDF
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -212,7 +225,9 @@ export default function ReceiptPage() {
             </div>
             <div className="receipt-badge">
               <div className="badge-label">RECEIPT</div>
-              <div className="badge-status">✓ APPROVED</div>
+              <div className="badge-status">
+                <CheckCircle size={14} /> APPROVED
+              </div>
             </div>
           </div>
 
@@ -255,7 +270,9 @@ export default function ReceiptPage() {
           {/* Sender & Receiver Information */}
           <div className="parties-section">
             <div className="party-box">
-              <h3 className="party-title">📤 Sender Details</h3>
+              <h3 className="party-title">
+                <Send size={16} /> Sender Details
+              </h3>
               <div className="party-details">
                 <p><strong>Name:</strong> {order.sender_name}</p>
                 <p><strong>Email:</strong> {order.sender_email}</p>
@@ -271,7 +288,9 @@ export default function ReceiptPage() {
             </div>
 
             <div className="party-box">
-              <h3 className="party-title">📥 Receiver Details</h3>
+              <h3 className="party-title">
+                <Inbox size={16} /> Receiver Details
+              </h3>
               <div className="party-details">
                 <p><strong>Name:</strong> {order.receiver_name}</p>
                 <p><strong>Phone:</strong> {order.receiver_phone}</p>
@@ -297,7 +316,9 @@ export default function ReceiptPage() {
 
           {/* Shipment Details */}
           <div className="shipment-section">
-            <h3 className="section-title">📦 Shipment Information</h3>
+            <h3 className="section-title">
+              <Package size={18} /> Shipment Information
+            </h3>
             <div className="shipment-grid">
               <div className="shipment-detail">
                 <span className="detail-label">Description:</span>
@@ -334,7 +355,9 @@ export default function ReceiptPage() {
 
           {/* Payment Summary */}
           <div className="payment-section">
-            <h3 className="section-title">💰 Payment Summary</h3>
+            <h3 className="section-title">
+              <BadgeDollarSign size={18} /> Payment Summary
+            </h3>
             <div className="payment-table">
               <div className="payment-row">
                 <span className="payment-label">Shipping Fee:</span>
