@@ -1002,11 +1002,11 @@ export default function QuotationPage() {
           }
 
           .quotation-text-content {
-            order: 2;
+            order: 1;
           }
 
           .quotation-container {
-            order: 1;
+            order: 2;
           }
 
           .quotation-text-content h1 {
@@ -1015,10 +1015,6 @@ export default function QuotationPage() {
 
           .quotation-text-content p {
             font-size: 1rem;
-          }
-
-          .quotation-text-image {
-            order: -1;
           }
 
           .quotation-container {
