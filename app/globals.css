@@ -810,11 +810,10 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     color: var(--accent-yellow);
     text-decoration: none;
     transition: background-color 0.3s;
-    font-size: 0.85rem;
-    line-height: 0;
 }
 
 .social-icon > span {
@@ -823,14 +822,13 @@ footer {
     justify-content: center !important;
     width: 100% !important;
     height: 100% !important;
+    position: relative !important;
 }
 
 .social-icon img {
     width: 18px !important;
     height: 18px !important;
-    display: block !important;
     object-fit: contain !important;
-    margin: auto !important;
 }
 
 .social-icon:hover {

@@ -80,7 +80,7 @@ export default function ContactUs() {
             {/* Contact Information */}
             <div className="contact-info">
               <h2>Contact Information</h2>
-              
+{/*               
               <div className="contact-info-item">
                 <div className="contact-icon">
                   <Globe />
@@ -89,7 +89,7 @@ export default function ContactUs() {
                   <h3>Website</h3>
                   <Link href="/">www.transdomlogistics.com</Link>
                 </div>
-              </div>
+              </div> */}
 
               <div className="contact-info-item">
                 <div className="contact-icon">
@@ -107,7 +107,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <h3>Phone</h3>
-                  <a href="tel:+15551234567">+1 (555) 123-4567</a>
+                  <a href="tel:+2348135740545">+234 (813) 574-0545</a>
                 </div>
               </div>
 
@@ -117,7 +117,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <h3>Corporate Office</h3>
-                  <p>123 Logistics Way, Business District<br />New York, NY 10001, USA</p>
+                  <p>9, Stadium Link Road Rumuola <br />Port Harcourt, Rivers State, Nigeria</p>
                 </div>
               </div>
 
