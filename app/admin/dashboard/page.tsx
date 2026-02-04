@@ -348,16 +348,22 @@ export default function AdminDashboard() {
         }}
       >
         <div
+          className="admin-header-inner"
           style={{
             maxWidth: "1400px",
             margin: "0 auto",
-            padding: "0 2rem",
+            padding: "0 clamp(1rem, 3vw, 2rem)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            flexWrap: "wrap",
+            gap: "1rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div
+            className="admin-header-brand"
+            style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+          >
             <Link href="/">
               <Image
                 src="/assets/transdom_logo.svg"
@@ -378,6 +384,7 @@ export default function AdminDashboard() {
           </div>
           <button
             onClick={handleLogout}
+            className="admin-logout-btn"
             style={{
               padding: "0.5rem 1.5rem",
               backgroundColor: "#d32f2f",
@@ -395,7 +402,14 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Content */}
-      <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "2rem" }}>
+      <main
+        className="admin-main"
+        style={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          padding: "clamp(1rem, 3vw, 2rem)",
+        }}
+      >
         {/* Stats Cards */}
         <div
           style={{
@@ -416,6 +430,7 @@ export default function AdminDashboard() {
             }}
           >
             <div
+              className="admin-modal-header"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1128,6 +1143,7 @@ export default function AdminDashboard() {
             <div style={{ padding: "1.5rem" }}>
               {/* Status Badge */}
               <div
+                className="admin-status-row"
                 style={{
                   marginBottom: "1.5rem",
                   display: "flex",
@@ -1664,6 +1680,38 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .admin-header-inner {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .admin-header-brand {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .admin-logout-btn {
+            width: 100%;
+            justify-content: center;
+            display: inline-flex;
+            align-items: center;
+          }
+
+          .admin-modal-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+
+          .admin-status-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -18,7 +18,13 @@ export default function Footer() {
           </div>
           <p style={{ color: '#aaa', marginBottom: '1rem' }}>Leading logistics platform simplifying shipping to 200+ countries worldwide.</p>
           <div className="social-links">
-            <a href="#" className="social-icon" aria-label="Facebook">
+            <a
+              href="https://facebook.com/transdomlogistics"
+              className="social-icon"
+              aria-label="Facebook"
+              target="_blank"
+              rel="noreferrer"
+            >
               <Image src="/assets/facebook.svg" alt="Facebook" width={18} height={18} />
             </a>
             <a href="#" className="social-icon" aria-label="Telegram">
@@ -27,7 +33,13 @@ export default function Footer() {
             <a href="#" className="social-icon" aria-label="LinkedIn">
               <Image src="/assets/linkedin.svg" alt="LinkedIn" width={18} height={18} />
             </a>
-            <a href="#" className="social-icon" aria-label="Instagram">
+            <a
+              href="https://instagram.com/transdomlogistics"
+              className="social-icon"
+              aria-label="Instagram"
+              target="_blank"
+              rel="noreferrer"
+            >
               <Image src="/assets/instagram.svg" alt="Instagram" width={18} height={18} />
             </a>
           </div>

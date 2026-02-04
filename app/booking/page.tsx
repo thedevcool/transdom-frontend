@@ -579,6 +579,7 @@ export default function BookingPage() {
               display: "flex",
               gap: "1rem",
               justifyContent: "center",
+              flexWrap: "wrap",
             }}>
               <button
                 onClick={() => setShowDropOffModal(false)}
@@ -592,6 +593,7 @@ export default function BookingPage() {
                   fontWeight: "600",
                   cursor: "pointer",
                   transition: "all 0.3s ease",
+                  flex: "1 1 160px",
                 }}
               >
                 Cancel
@@ -609,6 +611,7 @@ export default function BookingPage() {
                   cursor: "pointer",
                   transition: "all 0.3s ease",
                   boxShadow: "0 4px 6px rgba(16, 185, 129, 0.2)",
+                  flex: "1 1 160px",
                 }}
               >
                 I Acknowledge
@@ -1488,9 +1491,10 @@ export default function BookingPage() {
                   <h4 style={{ fontSize: "1rem", fontWeight: "700", marginBottom: "1rem" }}>
                     Select Payment Method
                   </h4>
-                  <div style={{ display: "flex", gap: "1rem" }}>
+                  <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
                     <label style={{
-                      flex: 1,
+                      flex: "1 1 220px",
+                      minWidth: "220px",
                       padding: "1rem",
                       border: paymentMethod === "online" ? "2px solid #047857" : "2px solid #e5e7eb",
                       borderRadius: "8px",
@@ -1508,7 +1512,8 @@ export default function BookingPage() {
                       Pay Online (Paystack)
                     </label>
                     <label style={{
-                      flex: 1,
+                      flex: "1 1 220px",
+                      minWidth: "220px",
                       padding: "1rem",
                       border: paymentMethod === "cash" ? "2px solid #047857" : "2px solid #e5e7eb",
                       borderRadius: "8px",

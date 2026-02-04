@@ -150,7 +150,12 @@ function PaymentContent() {
 
   if (!zone || !weight || !price) {
     return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>
+      <div
+        style={{
+          padding: "clamp(1.25rem, 4vw, 2rem)",
+          textAlign: "center",
+        }}
+      >
         <h1>Invalid Payment Link</h1>
         <p>Please start from the quotation page.</p>
         <Link href="/quotation">
@@ -169,7 +174,8 @@ function PaymentContent() {
         style={{
           backgroundColor: "#fff",
           borderBottom: "1px solid #e5e7eb",
-          padding: "1rem 2rem",
+          padding:
+            "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
         }}
       >
         <nav
@@ -179,6 +185,8 @@ function PaymentContent() {
             alignItems: "center",
             maxWidth: "1200px",
             margin: "0 auto",
+            flexWrap: "wrap",
+            gap: "0.75rem",
           }}
         >
           <div
@@ -217,7 +225,8 @@ function PaymentContent() {
       {/* Payment Section */}
       <section
         style={{
-          padding: "4rem 2rem",
+          padding:
+            "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
           backgroundColor: "#f9fafb",
           minHeight: "80vh",
           display: "flex",
@@ -228,7 +237,7 @@ function PaymentContent() {
           <div
             style={{
               backgroundColor: "#fff",
-              padding: "3rem",
+              padding: "clamp(1.5rem, 4vw, 3rem)",
               borderRadius: "0.5rem",
               boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
             }}
@@ -284,6 +293,8 @@ function PaymentContent() {
                   justifyContent: "space-between",
                   marginBottom: "0.75rem",
                   fontSize: "14px",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
                 }}
               >
                 <span style={{ color: "#6b7280" }}>Destination Zone:</span>
@@ -298,6 +309,8 @@ function PaymentContent() {
                   justifyContent: "space-between",
                   marginBottom: "0.75rem",
                   fontSize: "14px",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
                 }}
               >
                 <span style={{ color: "#6b7280" }}>Weight:</span>
@@ -312,6 +325,8 @@ function PaymentContent() {
                   justifyContent: "space-between",
                   marginBottom: "0.75rem",
                   fontSize: "14px",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
                 }}
               >
                 <span style={{ color: "#6b7280" }}>Delivery Speed:</span>
@@ -334,6 +349,8 @@ function PaymentContent() {
                   paddingTop: "1rem",
                   borderTop: "2px solid #e5e7eb",
                   fontSize: "18px",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
                 }}
               >
                 <span style={{ color: "#1f2937", fontWeight: "600" }}>

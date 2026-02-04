@@ -107,7 +107,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <h3>Phone</h3>
-                  <a href="tel:+2348135740545">+234 (813) 574-0545</a>
+                  <a href="tel:+2348135740545">+234 (704) 192-4403</a>
                 </div>
               </div>
 
@@ -116,8 +116,8 @@ export default function ContactUs() {
                   <MapPin />
                 </div>
                 <div>
-                  <h3>Corporate Office</h3>
-                  <p>9, Stadium Link Road Rumuola <br />Port Harcourt, Rivers State, Nigeria</p>
+                  <h3>Offices</h3>
+                  <p style={{fontSize: '0.9rem'}}><strong>Port Harcourt:</strong> 9 Stadium Link Road<br /><strong>Lagos:</strong> 20a Salami Lateef, Ajao Estate & 56 Ajibulu, Oshodi</p>
                 </div>
               </div>
 
@@ -127,7 +127,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <h3>Business Hours</h3>
-                  <p>Monday - Friday: 9:00 AM - 6:00 PM<br />Saturday: 10:00 AM - 4:00 PM<br />Sunday: Closed</p>
+                  <p style={{fontSize: '0.9rem'}}>Monday - Friday: 9:00 AM - 6:00 PM<br />Saturday: 10:00 AM - 4:00 PM<br />Sunday: Closed</p>
                 </div>
               </div>
             </div>

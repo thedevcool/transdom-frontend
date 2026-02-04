@@ -135,7 +135,8 @@ function VerifyContent() {
         style={{
           backgroundColor: "#fff",
           borderBottom: "1px solid #e5e7eb",
-          padding: "1rem 2rem",
+          padding:
+            "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
         }}
       >
         <nav
@@ -175,7 +176,8 @@ function VerifyContent() {
       {/* Main Content */}
       <section
         style={{
-          padding: "4rem 2rem",
+          padding:
+            "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
           backgroundColor: "#f9fafb",
           minHeight: "80vh",
           display: "flex",
@@ -187,7 +189,7 @@ function VerifyContent() {
           <div
             style={{
               backgroundColor: "#fff",
-              padding: "3rem",
+              padding: "clamp(1.5rem, 4vw, 3rem)",
               borderRadius: "0.5rem",
               boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
               textAlign: "center",
@@ -352,6 +354,8 @@ function VerifyContent() {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
                         }}
                       >
                         <span style={{ color: "#6b7280" }}>From:</span>
@@ -363,6 +367,8 @@ function VerifyContent() {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
                         }}
                       >
                         <span style={{ color: "#6b7280" }}>To:</span>
@@ -374,6 +380,8 @@ function VerifyContent() {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
                         }}
                       >
                         <span style={{ color: "#6b7280" }}>Weight:</span>
@@ -385,6 +393,8 @@ function VerifyContent() {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
                         }}
                       >
                         <span style={{ color: "#6b7280" }}>

@@ -45,7 +45,12 @@ export default function Home() {
               >
                 Get Pricing
               </button>
-              <button className="btn-secondary">Learn More</button>
+              <button 
+                className="btn-secondary"
+                onClick={() => (window.location.href = "/about-us")}
+              >
+                Learn More
+              </button>
             </div>
           </div>
         </div>
@@ -194,6 +199,15 @@ export default function Home() {
         </p>
         <div className="partner-carousel" role="region" aria-live="off">
           <div className="partner-track">
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
+            </div>
+            <div className="partner-logo partner-logo--large">
+              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+            </div>
+            <div className="partner-logo">
+              <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />
+            </div>
             <div className="partner-logo partner-logo--large">
               <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
             </div>
