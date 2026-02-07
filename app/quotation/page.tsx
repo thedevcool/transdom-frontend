@@ -5,17 +5,18 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import SearchableSelect from "@/app/components/SearchableSelect";
 import { useRouter } from "next/navigation";
 import { hasValidAuth } from "@/lib/auth";
 import { Package, Truck } from "lucide-react";
-import { 
-  getAllCountries, 
-  getCountryIsoCode, 
-  getStatesOfCountry, 
+import {
+  getAllCountries,
+  getCountryIsoCode,
+  getStatesOfCountry,
   getCitiesOfState,
   getStateIsoCode,
   StateOption,
-  CityOption 
+  CityOption,
 } from "@/lib/countries-data";
 
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
@@ -41,9 +42,7 @@ interface QuotationResult {
   base_price: string;
 }
 
-type Step =
-  | "basic"
-  | "delivery";
+type Step = "basic" | "delivery";
 
 export default function QuotationPage() {
   const router = useRouter();
@@ -141,8 +140,6 @@ export default function QuotationPage() {
     }
   };
 
-
-
   // Load pickup states when pickup country changes
   useEffect(() => {
     if (quoteData.pickupCountry) {
@@ -152,7 +149,7 @@ export default function QuotationPage() {
         const states = getStatesOfCountry(isoCode);
         setPickupStates(states);
         // Reset state and city when country changes
-        setQuoteData(prev => ({ ...prev, pickupState: "", pickupCity: "" }));
+        setQuoteData((prev) => ({ ...prev, pickupState: "", pickupCity: "" }));
         setPickupCities([]);
         setPickupStateIso("");
       }
@@ -168,7 +165,7 @@ export default function QuotationPage() {
         const cities = getCitiesOfState(pickupCountryIso, stateIso);
         setPickupCities(cities);
         // Reset city when state changes
-        setQuoteData(prev => ({ ...prev, pickupCity: "" }));
+        setQuoteData((prev) => ({ ...prev, pickupCity: "" }));
       }
     }
   }, [pickupCountryIso, quoteData.pickupState]);
@@ -182,7 +179,11 @@ export default function QuotationPage() {
         const states = getStatesOfCountry(isoCode);
         setDestStates(states);
         // Reset state and city when country changes
-        setQuoteData(prev => ({ ...prev, destinationState: "", destinationCity: "" }));
+        setQuoteData((prev) => ({
+          ...prev,
+          destinationState: "",
+          destinationCity: "",
+        }));
         setDestCities([]);
         setDestStateIso("");
       }
@@ -192,13 +193,16 @@ export default function QuotationPage() {
   // Load destination cities when destination state changes
   useEffect(() => {
     if (destCountryIso && quoteData.destinationState) {
-      const stateIso = getStateIsoCode(destCountryIso, quoteData.destinationState);
+      const stateIso = getStateIsoCode(
+        destCountryIso,
+        quoteData.destinationState,
+      );
       if (stateIso) {
         setDestStateIso(stateIso);
         const cities = getCitiesOfState(destCountryIso, stateIso);
         setDestCities(cities);
         // Reset city when state changes
-        setQuoteData(prev => ({ ...prev, destinationCity: "" }));
+        setQuoteData((prev) => ({ ...prev, destinationCity: "" }));
       }
     }
   }, [destCountryIso, quoteData.destinationState]);
@@ -329,26 +333,20 @@ export default function QuotationPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="pickup-country">Country *</label>
-                    <select
-                      name="pickup-country"
-                      id="pickup-country"
-                      className="form-control"
+                    <SearchableSelect
+                      options={COUNTRIES}
                       value={quoteData.pickupCountry}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setQuoteData({
                           ...quoteData,
-                          pickupCountry: e.target.value,
+                          pickupCountry: value,
                         })
                       }
+                      placeholder="Search country..."
+                      name="pickup-country"
+                      id="pickup-country"
                       required
-                    >
-                      <option value="">Select Country</option>
-                      {COUNTRIES.map((country) => (
-                        <option key={country.value} value={country.value}>
-                          {country.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 </div>
 
@@ -356,25 +354,19 @@ export default function QuotationPage() {
                   <div className="form-group">
                     <label htmlFor="pickup-state">State/Province</label>
                     {pickupStates.length > 0 ? (
-                      <select
-                        name="pickup-state"
-                        id="pickup-state"
-                        className="form-control"
+                      <SearchableSelect
+                        options={pickupStates}
                         value={quoteData.pickupState}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setQuoteData({
                             ...quoteData,
-                            pickupState: e.target.value,
+                            pickupState: value,
                           })
                         }
-                      >
-                        <option value="">Select State/Province</option>
-                        {pickupStates.map((state) => (
-                          <option key={state.isoCode} value={state.value}>
-                            {state.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Search state/province..."
+                        name="pickup-state"
+                        id="pickup-state"
+                      />
                     ) : (
                       <input
                         type="text"
@@ -395,25 +387,19 @@ export default function QuotationPage() {
                   <div className="form-group">
                     <label htmlFor="pickup-city">City</label>
                     {pickupCities.length > 0 ? (
-                      <select
-                        name="pickup-city"
-                        id="pickup-city"
-                        className="form-control"
+                      <SearchableSelect
+                        options={pickupCities}
                         value={quoteData.pickupCity}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setQuoteData({
                             ...quoteData,
-                            pickupCity: e.target.value,
+                            pickupCity: value,
                           })
                         }
-                      >
-                        <option value="">Select City</option>
-                        {pickupCities.map((city) => (
-                          <option key={city.value} value={city.value}>
-                            {city.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Search city..."
+                        name="pickup-city"
+                        id="pickup-city"
+                      />
                     ) : (
                       <input
                         type="text"
@@ -437,26 +423,20 @@ export default function QuotationPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="destination-country">Country *</label>
-                    <select
-                      name="destination-country"
-                      id="destination-country"
-                      className="form-control"
+                    <SearchableSelect
+                      options={COUNTRIES}
                       value={quoteData.destinationCountry}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setQuoteData({
                           ...quoteData,
-                          destinationCountry: e.target.value,
+                          destinationCountry: value,
                         })
                       }
+                      placeholder="Search country..."
+                      name="destination-country"
+                      id="destination-country"
                       required
-                    >
-                      <option value="">Select Country</option>
-                      {COUNTRIES.map((country) => (
-                        <option key={country.value} value={country.value}>
-                          {country.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 </div>
 
@@ -464,25 +444,19 @@ export default function QuotationPage() {
                   <div className="form-group">
                     <label htmlFor="destination-state">State/Province</label>
                     {destStates.length > 0 ? (
-                      <select
-                        name="destination-state"
-                        id="destination-state"
-                        className="form-control"
+                      <SearchableSelect
+                        options={destStates}
                         value={quoteData.destinationState}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setQuoteData({
                             ...quoteData,
-                            destinationState: e.target.value,
+                            destinationState: value,
                           })
                         }
-                      >
-                        <option value="">Select State/Province</option>
-                        {destStates.map((state) => (
-                          <option key={state.isoCode} value={state.value}>
-                            {state.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Search state/province..."
+                        name="destination-state"
+                        id="destination-state"
+                      />
                     ) : (
                       <input
                         type="text"
@@ -503,25 +477,19 @@ export default function QuotationPage() {
                   <div className="form-group">
                     <label htmlFor="destination-city">City</label>
                     {destCities.length > 0 ? (
-                      <select
-                        name="destination-city"
-                        id="destination-city"
-                        className="form-control"
+                      <SearchableSelect
+                        options={destCities}
                         value={quoteData.destinationCity}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setQuoteData({
                             ...quoteData,
-                            destinationCity: e.target.value,
+                            destinationCity: value,
                           })
                         }
-                      >
-                        <option value="">Select City</option>
-                        {destCities.map((city) => (
-                          <option key={city.value} value={city.value}>
-                            {city.label}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Search city..."
+                        name="destination-city"
+                        id="destination-city"
+                      />
                     ) : (
                       <input
                         type="text"
@@ -688,8 +656,17 @@ export default function QuotationPage() {
                             {parseFloat(option.price).toLocaleString()}
                           </div>
                         </div>
-                        <div style={{ fontSize: "0.9rem", color: "#666", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <Package size={14} /> Estimated delivery: {option.estimated_delivery}
+                        <div
+                          style={{
+                            fontSize: "0.9rem",
+                            color: "#666",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <Package size={14} /> Estimated delivery:{" "}
+                          {option.estimated_delivery}
                         </div>
                       </div>
                     ))}
@@ -735,8 +712,6 @@ export default function QuotationPage() {
                   </div>
                 </div>
               )}
-
-
 
             {/* Local Form */}
             {activeTab === "local" && (

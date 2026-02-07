@@ -61,7 +61,9 @@ export default function Dashboard() {
   const [basicQuote, setBasicQuote] = useState<BasicQuote | null>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "quotation">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "quotation">(
+    "overview",
+  );
 
   const handleClearQuotation = useCallback(() => {
     localStorage.removeItem(BASIC_QUOTE_STORAGE_KEY);
@@ -76,7 +78,14 @@ export default function Dashboard() {
         const data: BasicQuote = JSON.parse(savedQuote);
         console.log("Loaded basic quote:", data);
         // Only set if we have valid data with required fields
-        if (data && data.amount_paid && data.pickup_country && data.destination_country && data.weight && data.zone_picked) {
+        if (
+          data &&
+          data.amount_paid &&
+          data.pickup_country &&
+          data.destination_country &&
+          data.weight &&
+          data.zone_picked
+        ) {
           setBasicQuote(data);
         } else {
           console.warn("Invalid quote data, missing required fields:", data);
@@ -240,7 +249,12 @@ export default function Dashboard() {
                 <div className="stat-content">
                   <div className="stat-label">In Transit</div>
                   <div className="stat-value">
-                    {shipments.filter(s => s.status === "pending" || s.status === "in_transit").length}
+                    {
+                      shipments.filter(
+                        (s) =>
+                          s.status === "pending" || s.status === "in_transit",
+                      ).length
+                    }
                   </div>
                 </div>
               </div>
@@ -251,7 +265,7 @@ export default function Dashboard() {
                 <div className="stat-content">
                   <div className="stat-label">Delivered</div>
                   <div className="stat-value">
-                    {shipments.filter(s => s.status === "delivered").length}
+                    {shipments.filter((s) => s.status === "delivered").length}
                   </div>
                 </div>
               </div>
@@ -262,7 +276,10 @@ export default function Dashboard() {
                 <div className="stat-content">
                   <div className="stat-label">Total Spent</div>
                   <div className="stat-value">
-                    ₦{shipments.reduce((sum, s) => sum + (s.amount_paid || 0), 0).toLocaleString()}
+                    ₦
+                    {shipments
+                      .reduce((sum, s) => sum + (s.amount_paid || 0), 0)
+                      .toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -294,16 +311,21 @@ export default function Dashboard() {
                       <div className="shipment-header">
                         <div className="shipment-title">
                           <span className="order-no">{shipment.order_no}</span>
-                          <span className={`status-badge status-${shipment.status}`}>
+                          <span
+                            className={`status-badge status-${shipment.status}`}
+                          >
                             {shipment.status.replace("_", " ")}
                           </span>
                         </div>
                         <div className="shipment-date">
-                          {new Date(shipment.date_created).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric"
-                          })}
+                          {new Date(shipment.date_created).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
                         </div>
                       </div>
 
@@ -315,8 +337,12 @@ export default function Dashboard() {
                             </span>
                             <div>
                               <div className="detail-label">From</div>
-                              <div className="detail-value">{shipment.sender_name}</div>
-                              <div className="detail-sub">{shipment.sender_country}</div>
+                              <div className="detail-value">
+                                {shipment.sender_name}
+                              </div>
+                              <div className="detail-sub">
+                                {shipment.sender_country}
+                              </div>
                             </div>
                           </div>
                           <div className="detail-divider">→</div>
@@ -326,8 +352,12 @@ export default function Dashboard() {
                             </span>
                             <div>
                               <div className="detail-label">To</div>
-                              <div className="detail-value">{shipment.receiver_name}</div>
-                              <div className="detail-sub">{shipment.receiver_country}</div>
+                              <div className="detail-value">
+                                {shipment.receiver_name}
+                              </div>
+                              <div className="detail-sub">
+                                {shipment.receiver_country}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -335,24 +365,33 @@ export default function Dashboard() {
                         <div className="shipment-info">
                           <div className="info-col">
                             <div className="info-label">Package</div>
-                            <div className="info-text">{shipment.shipment_description}</div>
+                            <div className="info-text">
+                              {shipment.shipment_description}
+                            </div>
                           </div>
                           <div className="info-col">
                             <div className="info-label">Weight</div>
-                            <div className="info-text">{shipment.shipment_weight} kg</div>
+                            <div className="info-text">
+                              {shipment.shipment_weight} kg
+                            </div>
                           </div>
                           <div className="info-col">
                             <div className="info-label">Delivery Speed</div>
-                            <div className="info-text" style={{ textTransform: "capitalize" }}>
+                            <div
+                              className="info-text"
+                              style={{ textTransform: "capitalize" }}
+                            >
                               {shipment.delivery_speed}
                             </div>
                           </div>
                           <div className="info-col">
                             <div className="info-label">Amount</div>
-                            <div className="info-text">₦{shipment.amount_paid.toLocaleString()}</div>
+                            <div className="info-text">
+                              ₦{shipment.amount_paid.toLocaleString()}
+                            </div>
                           </div>
                         </div>
-                        
+
                         {/* View Receipt Button for Approved Orders */}
                         {shipment.status === "approved" && (
                           <div className="shipment-actions">
@@ -402,10 +441,20 @@ export default function Dashboard() {
                   </span>
                   <div>
                     <div className="route-label">From</div>
-                    <div className="route-value">{basicQuote.pickup_country}</div>
+                    <div className="route-value">
+                      {basicQuote.pickup_country}
+                    </div>
                     {(basicQuote.pickup_city || basicQuote.pickup_state) && (
-                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "4px" }}>
-                        {[basicQuote.pickup_city, basicQuote.pickup_state].filter(Boolean).join(", ")}
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          color: "#6b7280",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {[basicQuote.pickup_city, basicQuote.pickup_state]
+                          .filter(Boolean)
+                          .join(", ")}
                       </div>
                     )}
                   </div>
@@ -417,10 +466,24 @@ export default function Dashboard() {
                   </span>
                   <div>
                     <div className="route-label">To</div>
-                    <div className="route-value">{basicQuote.destination_country}</div>
-                    {(basicQuote.destination_city || basicQuote.destination_state) && (
-                      <div style={{ fontSize: "14px", color: "#6b7280", marginTop: "4px" }}>
-                        {[basicQuote.destination_city, basicQuote.destination_state].filter(Boolean).join(", ")}
+                    <div className="route-value">
+                      {basicQuote.destination_country}
+                    </div>
+                    {(basicQuote.destination_city ||
+                      basicQuote.destination_state) && (
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          color: "#6b7280",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {[
+                          basicQuote.destination_city,
+                          basicQuote.destination_state,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
                       </div>
                     )}
                   </div>
@@ -438,24 +501,33 @@ export default function Dashboard() {
                 </div>
                 <div className="quote-detail">
                   <span className="detail-label">Delivery Speed</span>
-                  <span className="detail-value" style={{ textTransform: "capitalize" }}>
+                  <span
+                    className="detail-value"
+                    style={{ textTransform: "capitalize" }}
+                  >
                     {basicQuote.delivery_speed}
                   </span>
                 </div>
                 <div className="quote-detail">
                   <span className="detail-label">Estimated Delivery</span>
-                  <span className="detail-value">{basicQuote.estimated_delivery}</span>
+                  <span className="detail-value">
+                    {basicQuote.estimated_delivery}
+                  </span>
                 </div>
               </div>
 
               <div className="quote-price">
                 <span className="price-label">Total Price</span>
                 <span className="price-value">
-                  {basicQuote?.currency || '₦'} {basicQuote?.amount_paid?.toLocaleString() || '0'}
+                  {basicQuote?.currency || "₦"}{" "}
+                  {basicQuote?.amount_paid?.toLocaleString() || "0"}
                 </span>
               </div>
 
-              <button onClick={handleContinueBooking} className="btn-continue-booking">
+              <button
+                onClick={handleContinueBooking}
+                className="btn-continue-booking"
+              >
                 Continue with Booking →
               </button>
             </div>
@@ -497,8 +569,12 @@ export default function Dashboard() {
         }
 
         @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
         }
 
         .modal-content {
@@ -604,7 +680,9 @@ export default function Dashboard() {
           font-size: 16px;
           font-weight: 500;
           z-index: 1001;
-          animation: slideInRight 0.3s ease, fadeOut 0.3s ease 4.7s;
+          animation:
+            slideInRight 0.3s ease,
+            fadeOut 0.3s ease 4.7s;
         }
 
         @keyframes slideInRight {
@@ -619,8 +697,12 @@ export default function Dashboard() {
         }
 
         @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
         }
 
         .success-icon {

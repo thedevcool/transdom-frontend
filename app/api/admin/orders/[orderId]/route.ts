@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Disable caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -70,7 +74,17 @@ export async function GET(
     }
 
     const data = await response.json();
-    return NextResponse.json(data, { status: 200 });
+    const res = NextResponse.json(data, { status: 200 });
+
+    // Disable caching
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+
+    return res;
   } catch (error) {
     console.error("Admin fetch order error:", error);
 
@@ -153,7 +167,17 @@ export async function DELETE(
     }
 
     const data = await response.json();
-    return NextResponse.json(data, { status: 200 });
+    const res = NextResponse.json(data, { status: 200 });
+
+    // Disable caching
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+
+    return res;
   } catch (error) {
     console.error("Admin delete order error:", error);
 
@@ -251,7 +275,17 @@ export async function PATCH(
     }
 
     const data = await response.json();
-    return NextResponse.json(data, { status: 200 });
+    const res = NextResponse.json(data, { status: 200 });
+
+    // Disable caching
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+
+    return res;
   } catch (error) {
     console.error("Admin update order error:", error);
 

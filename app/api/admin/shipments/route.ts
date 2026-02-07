@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Disable caching for this route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -10,12 +14,12 @@ const API_BASE_URL =
  */
 export async function GET(request: NextRequest) {
   try {
-    // Debug: log all cookies
-    const allCookies = request.cookies.getAll();
-    console.log(
-      "Admin shipments - All cookies:",
-      allCookies.map((c) => c.name),
-    );
+    // // Debug: log all cookies
+    // const allCookies = request.cookies.getAll();
+    // console.log(
+    //   "Admin shipments - All cookies:",
+    //   allCookies.map((c) => c.name),
+    // );
 
     // Get admin token from HTTP-only cookie OR Authorization header
     let token = request.cookies.get("admin_auth_token")?.value;
@@ -73,7 +77,17 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data, { status: 200 });
+    const res = NextResponse.json(data, { status: 200 });
+
+    // Disable caching
+    res.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+
+    return res;
   } catch (error) {
     console.error("Admin shipments fetch error:", error);
     return NextResponse.json(

@@ -8,14 +8,15 @@ import Footer from "@/app/components/Footer";
 import { useRouter } from "next/navigation";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
 import { AlertTriangle, Lightbulb, MapPin } from "lucide-react";
-import { 
-  getCountryIsoCode, 
-  getStatesOfCountry, 
+import {
+  getCountryIsoCode,
+  getStatesOfCountry,
   getCitiesOfState,
   getStateIsoCode,
   StateOption,
-  CityOption 
+  CityOption,
 } from "@/lib/countries-data";
+import SearchableSelect from "@/app/components/SearchableSelect";
 
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
@@ -35,12 +36,7 @@ interface BasicQuote {
   timestamp: string;
 }
 
-type Step =
-  | "sender"
-  | "receiver"
-  | "shipment"
-  | "addons"
-  | "review";
+type Step = "sender" | "receiver" | "shipment" | "addons" | "review";
 
 export default function BookingPage() {
   const router = useRouter();
@@ -85,7 +81,9 @@ export default function BookingPage() {
   const [calculatingInsurance, setCalculatingInsurance] = useState(false);
 
   // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("online");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    "online",
+  );
   const [showHubModal, setShowHubModal] = useState(false);
   const [showDropOffModal, setShowDropOffModal] = useState(false);
   const [hasAcknowledgedDropOff, setHasAcknowledgedDropOff] = useState(false);
@@ -205,7 +203,7 @@ export default function BookingPage() {
         const states = getStatesOfCountry(isoCode);
         setSenderStates(states);
         // Reset state and city when country changes
-        setSenderDetails(prev => ({ ...prev, state: "", city: "" }));
+        setSenderDetails((prev) => ({ ...prev, state: "", city: "" }));
         setSenderCities([]);
         setSenderStateIso("");
       }
@@ -222,7 +220,7 @@ export default function BookingPage() {
         const cities = getCitiesOfState(senderCountryIso, stateIso);
         setSenderCities(cities);
         // Reset city when state changes
-        setSenderDetails(prev => ({ ...prev, city: "" }));
+        setSenderDetails((prev) => ({ ...prev, city: "" }));
       }
     }
   }, [senderCountryIso, senderDetails.state]);
@@ -236,7 +234,7 @@ export default function BookingPage() {
         const states = getStatesOfCountry(isoCode);
         setReceiverStates(states);
         // Reset state and city when country changes
-        setReceiverDetails(prev => ({ ...prev, state: "", city: "" }));
+        setReceiverDetails((prev) => ({ ...prev, state: "", city: "" }));
         setReceiverCities([]);
         setReceiverStateIso("");
       }
@@ -247,20 +245,25 @@ export default function BookingPage() {
   // Load receiver cities when receiver state changes
   useEffect(() => {
     if (receiverCountryIso && receiverDetails.state) {
-      const stateIso = getStateIsoCode(receiverCountryIso, receiverDetails.state);
+      const stateIso = getStateIsoCode(
+        receiverCountryIso,
+        receiverDetails.state,
+      );
       if (stateIso) {
         setReceiverStateIso(stateIso);
         const cities = getCitiesOfState(receiverCountryIso, stateIso);
         setReceiverCities(cities);
         // Reset city when state changes
-        setReceiverDetails(prev => ({ ...prev, city: "" }));
+        setReceiverDetails((prev) => ({ ...prev, city: "" }));
       }
     }
   }, [receiverCountryIso, receiverDetails.state]);
 
   // Clear form and localStorage
   const handleClearForm = () => {
-    if (confirm("Are you sure you want to clear the saved quote and start over?")) {
+    if (
+      confirm("Are you sure you want to clear the saved quote and start over?")
+    ) {
       localStorage.removeItem(BASIC_QUOTE_STORAGE_KEY);
       router.push("/quotation");
     }
@@ -273,7 +276,9 @@ export default function BookingPage() {
     // Validate phone number
     const phoneRegex = /^\d+$/;
     if (!senderDetails.phone || !phoneRegex.test(senderDetails.phone)) {
-      setError("Phone number must contain only numbers (no spaces, dashes, or special characters)");
+      setError(
+        "Phone number must contain only numbers (no spaces, dashes, or special characters)",
+      );
       return;
     }
 
@@ -293,7 +298,9 @@ export default function BookingPage() {
     // Validate phone number
     const numericRegex = /^\d+$/;
     if (!receiverDetails.phone || !numericRegex.test(receiverDetails.phone)) {
-      setError("Phone number must contain only numbers (no spaces, dashes, or special characters)");
+      setError(
+        "Phone number must contain only numbers (no spaces, dashes, or special characters)",
+      );
       return;
     }
 
@@ -309,7 +316,9 @@ export default function BookingPage() {
     }
 
     if (!numericRegex.test(receiverDetails.postCode)) {
-      setError("Post code must contain only numbers (no spaces, dashes, or special characters)");
+      setError(
+        "Post code must contain only numbers (no spaces, dashes, or special characters)",
+      );
       return;
     }
 
@@ -322,7 +331,10 @@ export default function BookingPage() {
     e.preventDefault();
 
     // Validate shipment details
-    if (!shipmentDetails.description || shipmentDetails.description.trim().length < 3) {
+    if (
+      !shipmentDetails.description ||
+      shipmentDetails.description.trim().length < 3
+    ) {
       setError("Shipment description must be at least 3 characters");
       return;
     }
@@ -389,7 +401,9 @@ export default function BookingPage() {
           receiver_country: receiverDetails.country,
           shipment_description: shipmentDetails.description,
           shipment_quantity: parseInt(shipmentDetails.quantity),
-          shipment_value: shipmentDetails.value ? parseFloat(shipmentDetails.value) : undefined,
+          shipment_value: shipmentDetails.value
+            ? parseFloat(shipmentDetails.value)
+            : undefined,
           shipment_weight: basicQuote.weight,
           zone_picked: basicQuote.zone_picked,
           delivery_speed: basicQuote.delivery_speed,
@@ -397,8 +411,11 @@ export default function BookingPage() {
           add_insurance: addInsurance,
           insurance_fee: addInsurance ? insuranceFee : 0,
         };
-        
-        localStorage.setItem("transdom_booking_details", JSON.stringify(bookingDetailsForStorage));
+
+        localStorage.setItem(
+          "transdom_booking_details",
+          JSON.stringify(bookingDetailsForStorage),
+        );
 
         // Initialize Paystack payment
         const paymentResponse = await fetch("/api/payments/initialize", {
@@ -433,7 +450,9 @@ export default function BookingPage() {
               shipment: {
                 description: shipmentDetails.description,
                 quantity: parseInt(shipmentDetails.quantity),
-                value: shipmentDetails.value ? parseFloat(shipmentDetails.value) : undefined,
+                value: shipmentDetails.value
+                  ? parseFloat(shipmentDetails.value)
+                  : undefined,
                 weight: basicQuote.weight,
               },
             },
@@ -479,7 +498,9 @@ export default function BookingPage() {
             receiver_country: receiverDetails.country,
             shipment_description: shipmentDetails.description,
             shipment_quantity: parseInt(shipmentDetails.quantity),
-            shipment_value: shipmentDetails.value ? parseFloat(shipmentDetails.value) : undefined,
+            shipment_value: shipmentDetails.value
+              ? parseFloat(shipmentDetails.value)
+              : undefined,
             shipment_weight: basicQuote.weight,
             zone_picked: basicQuote.zone_picked,
             delivery_speed: basicQuote.delivery_speed,
@@ -534,53 +555,66 @@ export default function BookingPage() {
 
       {/* Drop-off Acknowledgment Modal */}
       {showDropOffModal && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.6)",
-          backdropFilter: "blur(4px)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: 1000,
-          animation: "fadeIn 0.2s ease",
-        }}>
-          <div style={{
-            background: "white",
-            borderRadius: "16px",
-            padding: "2.5rem",
-            maxWidth: "500px",
-            width: "90%",
-            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-            animation: "slideUp 0.3s ease",
-            textAlign: "center",
-          }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+            animation: "fadeIn 0.2s ease",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              padding: "2.5rem",
+              maxWidth: "500px",
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              animation: "slideUp 0.3s ease",
+              textAlign: "center",
+            }}
+          >
             <div style={{ marginBottom: "1rem" }}>
               <MapPin size={64} />
             </div>
-            <h2 style={{
-              fontSize: "28px",
-              fontWeight: "700",
-              color: "#047857",
-              marginBottom: "1rem",
-            }}>Drop-off Information</h2>
-            <p style={{
-              fontSize: "18px",
-              color: "#374151",
-              lineHeight: "1.6",
-              marginBottom: "2rem",
-            }}>
-              You can drop off your package at any of our hub locations. Visit our <strong>Contact Us</strong> page for hub addresses.
+            <h2
+              style={{
+                fontSize: "28px",
+                fontWeight: "700",
+                color: "#047857",
+                marginBottom: "1rem",
+              }}
+            >
+              Drop-off Information
+            </h2>
+            <p
+              style={{
+                fontSize: "18px",
+                color: "#374151",
+                lineHeight: "1.6",
+                marginBottom: "2rem",
+              }}
+            >
+              You can drop off your package at any of our hub locations. Visit
+              our <strong>Contact Us</strong> page for hub addresses.
             </p>
-            <div style={{
-              display: "flex",
-              gap: "1rem",
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <button
                 onClick={() => setShowDropOffModal(false)}
                 style={{
@@ -602,7 +636,8 @@ export default function BookingPage() {
                 onClick={handleAcknowledgeDropOff}
                 style={{
                   padding: "0.875rem 1.75rem",
-                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  background:
+                    "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -627,24 +662,43 @@ export default function BookingPage() {
           <div className="quotation-text-content">
             <h1>Complete Your Booking</h1>
             <p>
-              Fill in the shipping details to complete your order. We&apos;ve saved your quote information below.
+              Fill in the shipping details to complete your order. We&apos;ve
+              saved your quote information below.
             </p>
 
             {/* Saved Quote Display */}
-            <div style={{
-              background: "linear-gradient(135deg, #047857 0%, #065f46 100%)",
-              borderRadius: "12px",
-              padding: "1.5rem",
-              color: "white",
-              marginTop: "2rem",
-            }}>
-              <h3 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>Your Saved Quote</h3>
-              <div style={{ display: "grid", gap: "0.5rem", fontSize: "0.95rem" }}>
-                <div><strong>From:</strong> {basicQuote.pickup_country}</div>
-                <div><strong>To:</strong> {basicQuote.destination_country}</div>
-                <div><strong>Weight:</strong> {basicQuote.weight} kg</div>
-                <div><strong>Delivery:</strong> {basicQuote.delivery_speed.toUpperCase()}</div>
-                <div><strong>Base Price:</strong> {basicQuote.currency} {basicQuote.amount_paid.toLocaleString()}</div>
+            <div
+              style={{
+                background: "linear-gradient(135deg, #047857 0%, #065f46 100%)",
+                borderRadius: "12px",
+                padding: "1.5rem",
+                color: "white",
+                marginTop: "2rem",
+              }}
+            >
+              <h3 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>
+                Your Saved Quote
+              </h3>
+              <div
+                style={{ display: "grid", gap: "0.5rem", fontSize: "0.95rem" }}
+              >
+                <div>
+                  <strong>From:</strong> {basicQuote.pickup_country}
+                </div>
+                <div>
+                  <strong>To:</strong> {basicQuote.destination_country}
+                </div>
+                <div>
+                  <strong>Weight:</strong> {basicQuote.weight} kg
+                </div>
+                <div>
+                  <strong>Delivery:</strong>{" "}
+                  {basicQuote.delivery_speed.toUpperCase()}
+                </div>
+                <div>
+                  <strong>Base Price:</strong> {basicQuote.currency}{" "}
+                  {basicQuote.amount_paid.toLocaleString()}
+                </div>
               </div>
               <button
                 onClick={handleClearForm}
@@ -736,7 +790,13 @@ export default function BookingPage() {
                   <label htmlFor="sender-email">
                     Email *
                     {getAuthUser() && (
-                      <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#10b981",
+                          marginLeft: "8px",
+                        }}
+                      >
                         (Auto-filled from your account)
                       </span>
                     )}
@@ -753,7 +813,11 @@ export default function BookingPage() {
                       })
                     }
                     readOnly={!!getAuthUser()}
-                    style={getAuthUser() ? { backgroundColor: '#f0fdf4', cursor: 'not-allowed' } : {}}
+                    style={
+                      getAuthUser()
+                        ? { backgroundColor: "#f0fdf4", cursor: "not-allowed" }
+                        : {}
+                    }
                     required
                   />
                 </div>
@@ -761,7 +825,13 @@ export default function BookingPage() {
                 <div className="form-group">
                   <label htmlFor="sender-phone">
                     Phone Number *
-                    <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        marginLeft: "8px",
+                      }}
+                    >
                       (Numbers only, include country code)
                     </span>
                   </label>
@@ -804,25 +874,20 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="sender-state">State/Province *</label>
                     {senderStates.length > 0 ? (
-                      <select
-                        id="sender-state"
-                        className="form-control"
+                      <SearchableSelect
+                        options={senderStates}
                         value={senderDetails.state}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setSenderDetails({
                             ...senderDetails,
-                            state: e.target.value,
+                            state: value,
                           })
                         }
+                        placeholder="Search state/province..."
+                        name="sender-state"
+                        id="sender-state"
                         required
-                      >
-                        <option value="">Select State/Province</option>
-                        {senderStates.map((state) => (
-                          <option key={state.isoCode} value={state.value}>
-                            {state.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     ) : (
                       <input
                         type="text"
@@ -843,25 +908,20 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="sender-city">City *</label>
                     {senderCities.length > 0 ? (
-                      <select
-                        id="sender-city"
-                        className="form-control"
+                      <SearchableSelect
+                        options={senderCities}
                         value={senderDetails.city}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setSenderDetails({
                             ...senderDetails,
-                            city: e.target.value,
+                            city: value,
                           })
                         }
+                        placeholder="Search city..."
+                        name="sender-city"
+                        id="sender-city"
                         required
-                      >
-                        <option value="">Select City</option>
-                        {senderCities.map((city) => (
-                          <option key={city.value} value={city.value}>
-                            {city.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     ) : (
                       <input
                         type="text"
@@ -884,7 +944,13 @@ export default function BookingPage() {
                 <div className="form-group">
                   <label htmlFor="sender-country">
                     Country *
-                    <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#10b981",
+                        marginLeft: "8px",
+                      }}
+                    >
                       (Set to pickup country)
                     </span>
                   </label>
@@ -894,7 +960,10 @@ export default function BookingPage() {
                     className="form-control"
                     value={senderDetails.country}
                     readOnly
-                    style={{ backgroundColor: '#f0fdf4', cursor: 'not-allowed' }}
+                    style={{
+                      backgroundColor: "#f0fdf4",
+                      cursor: "not-allowed",
+                    }}
                     required
                   />
                 </div>
@@ -930,7 +999,13 @@ export default function BookingPage() {
                 <div className="form-group">
                   <label htmlFor="receiver-phone">
                     Phone Number *
-                    <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        marginLeft: "8px",
+                      }}
+                    >
                       (Numbers only, include country code)
                     </span>
                   </label>
@@ -973,25 +1048,20 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="receiver-state">State/Province *</label>
                     {receiverStates.length > 0 ? (
-                      <select
-                        id="receiver-state"
-                        className="form-control"
+                      <SearchableSelect
+                        options={receiverStates}
                         value={receiverDetails.state}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setReceiverDetails({
                             ...receiverDetails,
-                            state: e.target.value,
+                            state: value,
                           })
                         }
+                        placeholder="Search state/province..."
+                        name="receiver-state"
+                        id="receiver-state"
                         required
-                      >
-                        <option value="">Select State/Province</option>
-                        {receiverStates.map((state) => (
-                          <option key={state.isoCode} value={state.value}>
-                            {state.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     ) : (
                       <input
                         type="text"
@@ -1012,25 +1082,20 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="receiver-city">City *</label>
                     {receiverCities.length > 0 ? (
-                      <select
-                        id="receiver-city"
-                        className="form-control"
+                      <SearchableSelect
+                        options={receiverCities}
                         value={receiverDetails.city}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           setReceiverDetails({
                             ...receiverDetails,
-                            city: e.target.value,
+                            city: value,
                           })
                         }
+                        placeholder="Search city..."
+                        name="receiver-city"
+                        id="receiver-city"
                         required
-                      >
-                        <option value="">Select City</option>
-                        {receiverCities.map((city) => (
-                          <option key={city.value} value={city.value}>
-                            {city.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     ) : (
                       <input
                         type="text"
@@ -1054,7 +1119,13 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="receiver-postcode">
                       Post Code *
-                      <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          marginLeft: "8px",
+                        }}
+                      >
                         (Numbers only)
                       </span>
                     </label>
@@ -1078,7 +1149,13 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="receiver-country">
                       Country *
-                      <span style={{ fontSize: '12px', color: '#10b981', marginLeft: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#10b981",
+                          marginLeft: "8px",
+                        }}
+                      >
                         (Set to destination country)
                       </span>
                     </label>
@@ -1088,7 +1165,10 @@ export default function BookingPage() {
                       className="form-control"
                       value={receiverDetails.country}
                       readOnly
-                      style={{ backgroundColor: '#f0fdf4', cursor: 'not-allowed' }}
+                      style={{
+                        backgroundColor: "#f0fdf4",
+                        cursor: "not-allowed",
+                      }}
                       required
                     />
                   </div>
@@ -1161,7 +1241,13 @@ export default function BookingPage() {
                   <div className="form-group">
                     <label htmlFor="shipment-value">
                       Declared Value (NGN)
-                      <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          marginLeft: "8px",
+                        }}
+                      >
                         (Required for insurance)
                       </span>
                     </label>
@@ -1209,20 +1295,24 @@ export default function BookingPage() {
               <div className="quotation-form">
                 <h3 className="form-section-title">Optional Add-ons</h3>
 
-                <div style={{
-                  background: "#f9fafb",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "8px",
-                  padding: "1.5rem",
-                  marginBottom: "1.5rem",
-                }}>
-                  <label style={{
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    fontSize: "1.1rem",
-                    fontWeight: "600",
-                  }}>
+                <div
+                  style={{
+                    background: "#f9fafb",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    padding: "1.5rem",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      fontSize: "1.1rem",
+                      fontWeight: "600",
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={addInsurance}
@@ -1241,35 +1331,78 @@ export default function BookingPage() {
                     <div style={{ marginTop: "1rem", paddingLeft: "32px" }}>
                       {!shipmentDetails.value ? (
                         <p style={{ color: "#d97706", fontSize: "0.9rem" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              marginRight: "0.5rem",
+                            }}
+                          >
                             <AlertTriangle size={16} />
                           </span>
-                          Please enter a shipment value in the previous step to calculate insurance.
+                          Please enter a shipment value in the previous step to
+                          calculate insurance.
                         </p>
                       ) : (
                         <div>
-                          <div style={{
-                            background: "white",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "6px",
-                            padding: "1rem",
-                            marginBottom: "1rem",
-                          }}>
-                            <div style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>
-                              <strong>Shipment Value:</strong> ₦{parseFloat(shipmentDetails.value).toLocaleString()}
+                          <div
+                            style={{
+                              background: "white",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "6px",
+                              padding: "1rem",
+                              marginBottom: "1rem",
+                            }}
+                          >
+                            <div
+                              style={{
+                                marginBottom: "0.5rem",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              <strong>Shipment Value:</strong> ₦
+                              {parseFloat(
+                                shipmentDetails.value,
+                              ).toLocaleString()}
                             </div>
-                            <div style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>
-                              <strong>Insurance Fee:</strong> {calculatingInsurance ? "Calculating..." : `₦${insuranceFee.toLocaleString()}`}
+                            <div
+                              style={{
+                                marginBottom: "0.5rem",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              <strong>Insurance Fee:</strong>{" "}
+                              {calculatingInsurance
+                                ? "Calculating..."
+                                : `₦${insuranceFee.toLocaleString()}`}
                             </div>
-                            <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-                              Coverage: Loss or damage up to ₦{parseFloat(shipmentDetails.value).toLocaleString()}
+                            <div
+                              style={{ fontSize: "0.85rem", color: "#6b7280" }}
+                            >
+                              Coverage: Loss or damage up to ₦
+                              {parseFloat(
+                                shipmentDetails.value,
+                              ).toLocaleString()}
                             </div>
                           </div>
-                          <p style={{ fontSize: "0.85rem", color: "#6b7280", lineHeight: "1.5" }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                          <p
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "#6b7280",
+                              lineHeight: "1.5",
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                marginRight: "0.5rem",
+                              }}
+                            >
                               <Lightbulb size={16} />
                             </span>
-                            Insurance is calculated at 2% of shipment value with a minimum fee of ₦500.
+                            Insurance is calculated at 2% of shipment value with
+                            a minimum fee of ₦500.
                           </p>
                         </div>
                       )}
@@ -1277,19 +1410,29 @@ export default function BookingPage() {
                   )}
                 </div>
 
-                <div style={{
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: "8px",
-                  padding: "1rem",
-                  marginBottom: "1.5rem",
-                  fontSize: "0.9rem",
-                  color: "#1e40af",
-                }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", marginRight: "0.5rem" }}>
+                <div
+                  style={{
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "8px",
+                    padding: "1rem",
+                    marginBottom: "1.5rem",
+                    fontSize: "0.9rem",
+                    color: "#1e40af",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      marginRight: "0.5rem",
+                    }}
+                  >
                     <MapPin size={16} />
                   </span>
-                  <strong>Drop-off Information:</strong> You can drop off your package at any of our hub locations. Visit our Contact Us page for hub addresses.
+                  <strong>Drop-off Information:</strong> You can drop off your
+                  package at any of our hub locations. Visit our Contact Us page
+                  for hub addresses.
                 </div>
 
                 <div
@@ -1422,8 +1565,7 @@ export default function BookingPage() {
                     Shipment Details
                   </h4>
                   <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                    <strong>Description:</strong>{" "}
-                    {shipmentDetails.description}
+                    <strong>Description:</strong> {shipmentDetails.description}
                   </div>
                   <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
                     <strong>Quantity:</strong> {shipmentDetails.quantity}
@@ -1433,7 +1575,8 @@ export default function BookingPage() {
                   </div>
                   {shipmentDetails.value && (
                     <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                      <strong>Declared Value:</strong> ₦{parseFloat(shipmentDetails.value).toLocaleString()}
+                      <strong>Declared Value:</strong> ₦
+                      {parseFloat(shipmentDetails.value).toLocaleString()}
                     </div>
                   )}
                   <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
@@ -1448,7 +1591,8 @@ export default function BookingPage() {
 
                 <div
                   style={{
-                    background: "linear-gradient(135deg, #047857 0%, #065f46 100%)",
+                    background:
+                      "linear-gradient(135deg, #047857 0%, #065f46 100%)",
                     border: "none",
                     borderRadius: "8px",
                     padding: "1.5rem",
@@ -1466,11 +1610,13 @@ export default function BookingPage() {
                     Price Breakdown
                   </h4>
                   <div style={{ marginBottom: "0.5rem" }}>
-                    Shipping Cost: {basicQuote.currency} {basicQuote.amount_paid.toLocaleString()}
+                    Shipping Cost: {basicQuote.currency}{" "}
+                    {basicQuote.amount_paid.toLocaleString()}
                   </div>
                   {addInsurance && (
                     <div style={{ marginBottom: "0.5rem" }}>
-                      Insurance Fee: {basicQuote.currency} {insuranceFee.toLocaleString()}
+                      Insurance Fee: {basicQuote.currency}{" "}
+                      {insuranceFee.toLocaleString()}
                     </div>
                   )}
                   <div
@@ -1483,24 +1629,41 @@ export default function BookingPage() {
                       borderTop: "2px solid rgba(255,255,255,0.3)",
                     }}
                   >
-                    Total: {basicQuote.currency} {(basicQuote.amount_paid + (addInsurance ? insuranceFee : 0)).toLocaleString()}
+                    Total: {basicQuote.currency}{" "}
+                    {(
+                      basicQuote.amount_paid + (addInsurance ? insuranceFee : 0)
+                    ).toLocaleString()}
                   </div>
                 </div>
 
                 <div style={{ marginBottom: "1.5rem" }}>
-                  <h4 style={{ fontSize: "1rem", fontWeight: "700", marginBottom: "1rem" }}>
+                  <h4
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: "700",
+                      marginBottom: "1rem",
+                    }}
+                  >
                     Select Payment Method
                   </h4>
-                  <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                    <label style={{
-                      flex: "1 1 220px",
-                      minWidth: "220px",
-                      padding: "1rem",
-                      border: paymentMethod === "online" ? "2px solid #047857" : "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: paymentMethod === "online" ? "#f0fdf4" : "white",
-                    }}>
+                  <div
+                    style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}
+                  >
+                    <label
+                      style={{
+                        flex: "1 1 220px",
+                        minWidth: "220px",
+                        padding: "1rem",
+                        border:
+                          paymentMethod === "online"
+                            ? "2px solid #047857"
+                            : "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        background:
+                          paymentMethod === "online" ? "#f0fdf4" : "white",
+                      }}
+                    >
                       <input
                         type="radio"
                         name="payment-method"
@@ -1511,15 +1674,21 @@ export default function BookingPage() {
                       />
                       Pay Online (Paystack)
                     </label>
-                    <label style={{
-                      flex: "1 1 220px",
-                      minWidth: "220px",
-                      padding: "1rem",
-                      border: paymentMethod === "cash" ? "2px solid #047857" : "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: paymentMethod === "cash" ? "#f0fdf4" : "white",
-                    }}>
+                    <label
+                      style={{
+                        flex: "1 1 220px",
+                        minWidth: "220px",
+                        padding: "1rem",
+                        border:
+                          paymentMethod === "cash"
+                            ? "2px solid #047857"
+                            : "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        background:
+                          paymentMethod === "cash" ? "#f0fdf4" : "white",
+                      }}
+                    >
                       <input
                         type="radio"
                         name="payment-method"
@@ -1553,7 +1722,11 @@ export default function BookingPage() {
                     onClick={handleCreateOrder}
                     disabled={isCreatingOrder}
                   >
-                    {isCreatingOrder ? "PROCESSING..." : paymentMethod === "online" ? "PROCEED TO PAYMENT" : "PLACE ORDER"}
+                    {isCreatingOrder
+                      ? "PROCESSING..."
+                      : paymentMethod === "online"
+                        ? "PROCEED TO PAYMENT"
+                        : "PLACE ORDER"}
                   </button>
                 </div>
               </div>
