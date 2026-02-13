@@ -844,9 +844,6 @@ The Transdom Express Team`,
       return;
     }
 
-    console.log("Selected user:", user);
-    console.log("All orders:", orders.length);
-
     setSelectedUserForEmail(user);
     setEmailForm({
       to_email: user.email,
@@ -854,17 +851,6 @@ The Transdom Express Team`,
       message: "",
       user_name: `${user.firstname} ${user.lastname}`,
     });
-
-    // Debug: check all email fields in orders
-    console.log(
-      "Sample order data:",
-      orders.slice(0, 3).map((o) => ({
-        email: o.email,
-        sender_email: o.sender_email,
-        _id: o._id,
-        order_no: o.order_no,
-      })),
-    );
 
     // Filter user's orders - check both email and sender_email fields
     const userEmail = user.email.toLowerCase().trim();
@@ -874,13 +860,6 @@ The Transdom Express Team`,
         .trim();
       return orderEmail === userEmail;
     });
-
-    console.log(
-      "Filtered user orders:",
-      userOrders.length,
-      "for email:",
-      user.email,
-    );
     setUserOrdersForEmail(userOrders);
   };
 
@@ -4108,7 +4087,8 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                   Weight must be greater than 0, price must be greater than 0
                 </li>
                 <li>
-                  Zone names must match the carrier&apos;s zone naming convention
+                  Zone names must match the carrier&apos;s zone naming
+                  convention
                 </li>
                 <li>Upload your modified Excel file to update pricing data</li>
               </ul>
@@ -5137,7 +5117,8 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
           </h2>
           <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
             You don&apos;t have permission to access this section. Your role (
-            {admin?.role}) doesn&apos;t include access to the {activeTab} management.
+            {admin?.role}) doesn&apos;t include access to the {activeTab}{" "}
+            management.
           </p>
           <div
             style={{

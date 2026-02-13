@@ -9,7 +9,7 @@ const API_BASE_URL =
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ adminId: string }> }
+  { params }: { params: Promise<{ adminId: string }> },
 ) {
   try {
     // Get admin token from cookie or Authorization header
@@ -24,26 +24,31 @@ export async function DELETE(
     if (!token) {
       return NextResponse.json(
         { detail: "Admin authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const { adminId } = await params;
 
     // Forward to FastAPI backend
-    const response = await fetch(`${API_BASE_URL}/api/admin/admins/${adminId}`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/admins/${adminId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Failed to delete admin" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Failed to delete admin" }));
       return NextResponse.json(
         { detail: error.detail || "Failed to delete admin" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -53,15 +58,14 @@ export async function DELETE(
       status: 200,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
+        Pragma: "no-cache",
       },
     });
-
   } catch (error) {
     console.error("Error deleting admin:", error);
     return NextResponse.json(
       { detail: "Failed to delete admin" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

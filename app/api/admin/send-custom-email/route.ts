@@ -58,14 +58,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward to FastAPI backend with admin token
-    const response = await fetch(`${API_BASE_URL}/api/admin/send-custom-email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/send-custom-email`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
     if (!response.ok) {
       const error = await response

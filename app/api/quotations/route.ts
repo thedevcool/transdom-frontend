@@ -105,16 +105,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `Mapped countries: ${body.pickupCountry} (${fromCountryIso}) -> ${body.destinationCountry} (${toCountryIso})`,
-    );
-
     // Round up weight to nearest whole number
     const weightRounded = Math.ceil(body.weight);
 
     // Fetch prices from all carriers using compare-prices endpoint
     const compareUrl = `${API_BASE_URL}/api/compare-prices?from_country=${encodeURIComponent(fromCountryIso)}&to_country=${encodeURIComponent(toCountryIso)}&weight=${weightRounded}`;
-    console.log(`Fetching prices from: ${compareUrl}`);
 
     const response = await fetch(compareUrl);
 

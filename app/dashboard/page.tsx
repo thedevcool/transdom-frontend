@@ -90,7 +90,6 @@ export default function Dashboard() {
     if (savedQuote) {
       try {
         const data: BasicQuote = JSON.parse(savedQuote);
-        console.log("Loaded basic quote:", data);
         // Only set if we have valid data with required fields
         if (
           data &&

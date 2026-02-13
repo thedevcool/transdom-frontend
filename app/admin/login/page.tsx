@@ -52,9 +52,6 @@ export default function AdminLoginPage() {
         throw new Error(data.detail || "Login failed");
       }
 
-      console.log("Login successful, data:", data);
-      console.log("Document cookies:", document.cookie);
-
       // Store admin data in localStorage as backup (for production cookie issues)
       if (data.admin) {
         localStorage.setItem("admin_user", JSON.stringify(data.admin));
@@ -70,7 +67,6 @@ export default function AdminLoginPage() {
       // Show success message
       setSuccess(true);
 
-      console.log("Redirecting to dashboard...");
       // Redirect immediately - cookies should be set by now
       router.push("/admin/dashboard");
     } catch (err) {
@@ -169,15 +165,21 @@ export default function AdminLoginPage() {
                   cursor: loading || success ? "not-allowed" : "pointer",
                 }}
               >
-                {success
-                  ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                      <CheckCircle size={18} /> Success! Redirecting...
-                    </span>
-                  )
-                  : loading
-                    ? "Signing In..."
-                    : "Sign In to Admin Portal"}
+                {success ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <CheckCircle size={18} /> Success! Redirecting...
+                  </span>
+                ) : loading ? (
+                  "Signing In..."
+                ) : (
+                  "Sign In to Admin Portal"
+                )}
               </button>
             </form>
 
@@ -194,7 +196,13 @@ export default function AdminLoginPage() {
                   fontWeight: "500",
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
                   <AlertTriangle size={16} /> {error}
                 </span>
               </div>
@@ -212,8 +220,15 @@ export default function AdminLoginPage() {
                   fontWeight: "500",
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                  <CheckCircle size={16} /> Login successful! Redirecting to dashboard...
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <CheckCircle size={16} /> Login successful! Redirecting to
+                  dashboard...
                 </span>
               </div>
             )}
@@ -237,8 +252,15 @@ export default function AdminLoginPage() {
               }}
             >
               <p style={{ fontSize: "12px", color: "#92400e", margin: 0 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                  <Lock size={14} /> This is a secure admin area. All actions are logged and
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Lock size={14} /> This is a secure admin area. All actions
+                  are logged and
                 </span>
                 monitored.
               </p>

@@ -67,8 +67,6 @@ export async function POST(request: NextRequest) {
     // Determine if we're in production
     const isProduction = process.env.NODE_ENV === "production";
 
-    console.log("Setting admin cookies, production:", isProduction);
-
     // Cookie configuration based on environment
     const cookieOptions = {
       httpOnly: true,

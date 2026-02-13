@@ -9,7 +9,7 @@ const API_BASE_URL =
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ adminId: string }> }
+  { params }: { params: Promise<{ adminId: string }> },
 ) {
   try {
     // Get admin token from cookie or Authorization header
@@ -24,7 +24,7 @@ export async function PATCH(
     if (!token) {
       return NextResponse.json(
         { detail: "Admin authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -33,10 +33,7 @@ export async function PATCH(
 
     // Validate required fields
     if (!body.role) {
-      return NextResponse.json(
-        { detail: "Role is required" },
-        { status: 422 }
-      );
+      return NextResponse.json({ detail: "Role is required" }, { status: 422 });
     }
 
     // Validate role
@@ -44,25 +41,30 @@ export async function PATCH(
     if (!allowedRoles.includes(body.role)) {
       return NextResponse.json(
         { detail: `Role must be one of: ${allowedRoles.join(", ")}` },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
     // Forward to FastAPI backend
-    const response = await fetch(`${API_BASE_URL}/api/admin/admins/${adminId}/role`, {
-      method: "PATCH",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/admins/${adminId}/role`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Failed to update admin role" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Failed to update admin role" }));
       return NextResponse.json(
         { detail: error.detail || "Failed to update admin role" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -72,15 +74,14 @@ export async function PATCH(
       status: 200,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
+        Pragma: "no-cache",
       },
     });
-
   } catch (error) {
     console.error("Error updating admin role:", error);
     return NextResponse.json(
       { detail: "Failed to update admin role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

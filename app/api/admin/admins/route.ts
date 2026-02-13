@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { detail: "Admin authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -30,16 +30,18 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${API_BASE_URL}/api/admin/admins`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Failed to fetch admins" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Failed to fetch admins" }));
       return NextResponse.json(
         { detail: error.detail || "Failed to fetch admins" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -49,15 +51,14 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
+        Pragma: "no-cache",
       },
     });
-
   } catch (error) {
     console.error("Error fetching admins:", error);
     return NextResponse.json(
       { detail: "Failed to fetch admins" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { detail: "Admin authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (!body.name || !body.password || !body.role) {
       return NextResponse.json(
         { detail: "Name, password, and role are required" },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
     if (!allowedRoles.includes(body.role)) {
       return NextResponse.json(
         { detail: `Role must be one of: ${allowedRoles.join(", ")}` },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
@@ -103,17 +104,19 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${API_BASE_URL}/api/admin/admins`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Failed to create admin" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Failed to create admin" }));
       return NextResponse.json(
         { detail: error.detail || "Failed to create admin" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
@@ -123,15 +126,14 @@ export async function POST(request: NextRequest) {
       status: 201,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "Pragma": "no-cache",
+        Pragma: "no-cache",
       },
     });
-
   } catch (error) {
     console.error("Error creating admin:", error);
     return NextResponse.json(
       { detail: "Failed to create admin" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
