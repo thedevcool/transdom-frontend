@@ -23,6 +23,15 @@ interface PaymentInitResponse {
   };
 }
 
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed?.toLowerCase()] || speed;
+};
+
 function PaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,9 +79,13 @@ function PaymentContent() {
       }
 
       // Retrieve booking details from localStorage
-      const savedBookingDetails = localStorage.getItem("transdom_booking_details");
+      const savedBookingDetails = localStorage.getItem(
+        "transdom_booking_details",
+      );
       if (!savedBookingDetails) {
-        throw new Error("Booking details not found. Please start from the quotation page.");
+        throw new Error(
+          "Booking details not found. Please start from the quotation page.",
+        );
       }
 
       const bookingData = JSON.parse(savedBookingDetails);
@@ -174,8 +187,7 @@ function PaymentContent() {
         style={{
           backgroundColor: "#fff",
           borderBottom: "1px solid #e5e7eb",
-          padding:
-            "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
+          padding: "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
         }}
       >
         <nav
@@ -225,8 +237,7 @@ function PaymentContent() {
       {/* Payment Section */}
       <section
         style={{
-          padding:
-            "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
+          padding: "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
           backgroundColor: "#f9fafb",
           minHeight: "80vh",
           display: "flex",
@@ -337,7 +348,7 @@ function PaymentContent() {
                     textTransform: "capitalize",
                   }}
                 >
-                  {speed}
+                  {getCarrierName(speed)}
                 </span>
               </div>
 
@@ -379,8 +390,15 @@ function PaymentContent() {
               }}
             >
               <p style={{ fontSize: "14px", color: "#065f46", margin: 0 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                  <CreditCard size={16} /> Payment will be processed for <strong>{user.email}</strong>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <CreditCard size={16} /> Payment will be processed for{" "}
+                  <strong>{user.email}</strong>
                 </span>
               </p>
             </div>
@@ -397,7 +415,13 @@ function PaymentContent() {
                 }}
               >
                 <p style={{ fontSize: "14px", color: "#dc2626", margin: 0 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
                     <AlertTriangle size={16} /> {error}
                   </span>
                 </p>
@@ -452,8 +476,15 @@ function PaymentContent() {
                 textAlign: "center",
               }}
             >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                <Lock size={14} /> Secure payment powered by Paystack. Your payment information is
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Lock size={14} /> Secure payment powered by Paystack. Your
+                payment information is
               </span>
               encrypted and secure.
             </p>

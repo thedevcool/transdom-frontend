@@ -37,7 +37,11 @@ export default function SignIn() {
   };
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    type: string;
+    message: string;
+    showContactSupport?: boolean;
+  } | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -76,10 +80,19 @@ export default function SignIn() {
           }
         }, 1000);
       } else {
-        setError(data.detail || "Login failed");
+        // Handle specific error types
+        if (data.error_code === "ACCOUNT_SUSPENDED") {
+          setError({
+            type: "suspended",
+            message: data.detail,
+            showContactSupport: data.contact_support,
+          });
+        } else {
+          setError({ type: "general", message: data.detail || "Login failed" });
+        }
       }
     } catch (error) {
-      setError("An error occurred during login");
+      setError({ type: "general", message: "An error occurred during login" });
     } finally {
       setIsLoading(false);
     }
@@ -226,17 +239,56 @@ export default function SignIn() {
                 className="error-message"
                 style={{
                   color: "white",
-                  backgroundColor: "#dc2626",
-                  padding: "12px",
+                  backgroundColor:
+                    error.type === "suspended" ? "#f59e0b" : "#dc2626",
+                  padding: "16px",
                   borderRadius: "8px",
                   marginTop: "10px",
                   textAlign: "center",
                   fontWeight: "500",
+                  border:
+                    error.type === "suspended" ? "2px solid #d97706" : "none",
                 }}
               >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                  <AlertTriangle size={16} /> {error}
-                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <AlertTriangle size={16} />
+                    <strong>
+                      {error.type === "suspended"
+                        ? "Account Suspended"
+                        : "Login Failed"}
+                    </strong>
+                  </span>
+                  <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.4" }}>
+                    {error.message}
+                  </p>
+                  {error.showContactSupport && (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        opacity: 0.9,
+                      }}
+                    >
+                      <strong>Need help?</strong> Contact our support team:
+                      <br />
+                      📧 support@transdom.com | 📞 +234-800-TRANSDOM
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

@@ -45,7 +45,7 @@ export default function Home() {
               >
                 Get Pricing
               </button>
-              <button 
+              <button
                 className="btn-secondary"
                 onClick={() => (window.location.href = "/about-us")}
               >
@@ -117,8 +117,8 @@ export default function Home() {
             </div>
             <h3>Multiple Options</h3>
             <p>
-              Choose from express, standard, or economy delivery options based
-              on your timeline and budget
+              Choose from DHL, FedEx, or UPS delivery options based on your
+              timeline and budget
             </p>
           </div>
           <div className="feature-card">
@@ -162,7 +162,7 @@ export default function Home() {
         </p>
         <div className="services-grid">
           <div className="service-box">
-            <h3>EXPRESS DELIVERY</h3>
+            <h3>DHL EXPRESS</h3>
             <p>3-5 Working Days</p>
             <p style={{ marginTop: "1rem", fontSize: "0.95rem" }}>
               Fast and reliable international shipping for urgent deliveries.
@@ -171,7 +171,7 @@ export default function Home() {
             <span className="service-tag">FASTEST</span>
           </div>
           <div className="service-box">
-            <h3>STANDARD DELIVERY</h3>
+            <h3>FEDEX STANDARD</h3>
             <p>5-8 Working Days</p>
             <p style={{ marginTop: "1rem", fontSize: "0.95rem" }}>
               Balanced shipping option offering good speed and competitive
@@ -180,7 +180,7 @@ export default function Home() {
             <span className="service-tag">POPULAR</span>
           </div>
           <div className="service-box">
-            <h3>ECONOMY DELIVERY</h3>
+            <h3>UPS ECONOMY</h3>
             <p>8-12 Working Days</p>
             <p style={{ marginTop: "1rem", fontSize: "0.95rem" }}>
               Our most affordable shipping option ideal for non-urgent,
@@ -203,7 +203,12 @@ export default function Home() {
               <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
             </div>
             <div className="partner-logo partner-logo--large">
-              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+              <Image
+                src="/assets/fedex.svg"
+                alt="FedEx"
+                width={180}
+                height={80}
+              />
             </div>
             <div className="partner-logo">
               <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />
@@ -212,7 +217,12 @@ export default function Home() {
               <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
             </div>
             <div className="partner-logo partner-logo--large">
-              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+              <Image
+                src="/assets/fedex.svg"
+                alt="FedEx"
+                width={180}
+                height={80}
+              />
             </div>
             <div className="partner-logo">
               <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />
@@ -221,7 +231,12 @@ export default function Home() {
               <Image src="/assets/dhl.svg" alt="DHL" width={180} height={80} />
             </div>
             <div className="partner-logo partner-logo--large">
-              <Image src="/assets/fedex.svg" alt="FedEx" width={180} height={80} />
+              <Image
+                src="/assets/fedex.svg"
+                alt="FedEx"
+                width={180}
+                height={80}
+              />
             </div>
             <div className="partner-logo">
               <Image src="/assets/ups.svg" alt="UPS" width={180} height={80} />

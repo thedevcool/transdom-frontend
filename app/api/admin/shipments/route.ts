@@ -29,13 +29,8 @@ export async function GET(request: NextRequest) {
       const authHeader = request.headers.get("authorization");
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
-        console.log("Using token from Authorization header");
       }
-    } else {
-      console.log("Using token from cookie");
     }
-
-    console.log("Admin auth token present:", !!token);
 
     if (!token) {
       console.error("No token found in cookie or header");
@@ -73,7 +68,18 @@ export async function GET(request: NextRequest) {
       const error = await response
         .json()
         .catch(() => ({ detail: "Failed to fetch shipments" }));
-      throw new Error(error.detail || `HTTP ${response.status}`);
+
+      // If it's an authentication error, return 401 to trigger frontend logout
+      const isAuthError =
+        response.status === 401 ||
+        (error.detail &&
+          (error.detail.toLowerCase().includes("credentials") ||
+            error.detail.toLowerCase().includes("unauthorized")));
+
+      return NextResponse.json(
+        { detail: error.detail || "Failed to fetch shipments" },
+        { status: isAuthError ? 401 : response.status },
+      );
     }
 
     const data = await response.json();

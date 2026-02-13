@@ -14,11 +14,24 @@ import {
   MapPin,
   Package,
   Send,
+  Settings,
+  Trash2,
   Truck,
+  User,
 } from "lucide-react";
 import { getAuthUser, hasValidAuth, clearAuthSession } from "@/lib/auth";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+
+// Map generic speed names to carrier names
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed.toLowerCase()] || speed;
+};
 
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
@@ -31,7 +44,7 @@ interface BasicQuote {
   destination_city?: string;
   weight: number;
   zone_picked: string;
-  delivery_speed: "economy" | "standard" | "express";
+  delivery_speed: string;
   amount_paid: number;
   currency: string;
   estimated_delivery: string;
@@ -61,9 +74,10 @@ export default function Dashboard() {
   const [basicQuote, setBasicQuote] = useState<BasicQuote | null>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "quotation">(
-    "overview",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "quotation" | "pending" | "settings"
+  >("overview");
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleClearQuotation = useCallback(() => {
     localStorage.removeItem(BASIC_QUOTE_STORAGE_KEY);
@@ -149,6 +163,54 @@ export default function Dashboard() {
     router.push("/booking");
   };
 
+  const handleDeleteAccount = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete your account? This action cannot be undone. All your shipment data will be permanently deleted.",
+      )
+    ) {
+      return;
+    }
+
+    // Second confirmation for safety
+    if (
+      !confirm(
+        "This is your final warning. Are you absolutely sure you want to delete your account?",
+      )
+    ) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch("/api/me", {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        // Clear local auth session
+        clearAuthSession();
+
+        // Show success message
+        alert(
+          "Your account has been successfully deleted. You will be redirected to the homepage.",
+        );
+
+        // Redirect to home page
+        router.push("/");
+      } else {
+        const error = await response.json();
+        alert(error.detail || "Failed to delete account. Please try again.");
+      }
+    } catch (error) {
+      console.error("Delete account error:", error);
+      alert("An error occurred while deleting your account. Please try again.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -216,6 +278,20 @@ export default function Dashboard() {
             Overview
           </button>
           <button
+            className={`tab-btn ${activeTab === "pending" ? "active" : ""}`}
+            onClick={() => setActiveTab("pending")}
+          >
+            <span className="tab-icon">
+              <Package size={20} />
+            </span>
+            Pending Orders
+            {shipments.filter((s) => s.status === "pending").length > 0 && (
+              <span className="badge">
+                {shipments.filter((s) => s.status === "pending").length}
+              </span>
+            )}
+          </button>
+          <button
             className={`tab-btn ${activeTab === "quotation" ? "active" : ""}`}
             onClick={() => setActiveTab("quotation")}
             disabled={!basicQuote}
@@ -225,6 +301,15 @@ export default function Dashboard() {
             </span>
             Pending Quote
             {basicQuote && <span className="badge">1</span>}
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            <span className="tab-icon">
+              <Settings size={20} />
+            </span>
+            Settings
           </button>
         </div>
 
@@ -381,7 +466,7 @@ export default function Dashboard() {
                               className="info-text"
                               style={{ textTransform: "capitalize" }}
                             >
-                              {shipment.delivery_speed}
+                              {getCarrierName(shipment.delivery_speed)}
                             </div>
                           </div>
                           <div className="info-col">
@@ -418,6 +503,115 @@ export default function Dashboard() {
                     Get a Quote
                   </Link>
                 </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Pending Orders Tab */}
+        {activeTab === "pending" && (
+          <>
+            <div className="dashboard-header">
+              <h2>Pending Orders</h2>
+              <p>Orders waiting for approval or processing</p>
+            </div>
+
+            <div className="shipments-grid">
+              {shipmentsLoading ? (
+                <div className="loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading your pending orders...</p>
+                </div>
+              ) : (
+                <>
+                  {shipments.filter((shipment) => shipment.status === "pending")
+                    .length > 0 ? (
+                    <div className="shipments-list">
+                      {shipments
+                        .filter((shipment) => shipment.status === "pending")
+                        .map((shipment) => (
+                          <div
+                            key={shipment._id}
+                            className="shipment-card pending"
+                          >
+                            <div className="shipment-header">
+                              <div className="shipment-info">
+                                <h3 className="order-number">
+                                  {shipment.order_no}
+                                </h3>
+                                <p className="order-route">
+                                  {shipment.sender_country} →{" "}
+                                  {shipment.receiver_country}
+                                </p>
+                              </div>
+                              <div className="shipment-status">
+                                <span className="status-badge pending">
+                                  <Hand size={14} />
+                                  Pending Approval
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="shipment-details">
+                              <div className="detail-row">
+                                <span className="detail-label">Weight:</span>
+                                <span className="detail-value">
+                                  {shipment.shipment_weight}kg
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Carrier:</span>
+                                <span className="detail-value">
+                                  {getCarrierName(shipment.delivery_speed)}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Amount:</span>
+                                <span className="detail-value">
+                                  ₦
+                                  {new Intl.NumberFormat().format(
+                                    shipment.amount_paid,
+                                  )}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">
+                                  Description:
+                                </span>
+                                <span className="detail-value">
+                                  {shipment.shipment_description}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="shipment-actions">
+                              <Link
+                                href={`/receipt/${shipment.order_no}`}
+                                className="btn-view-receipt"
+                              >
+                                <FileText size={16} />
+                                View Details
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <div className="empty-icon">
+                        <CheckCircle size={48} />
+                      </div>
+                      <h3>No Pending Orders</h3>
+                      <p>
+                        All your orders have been processed or you haven&apos;t
+                        placed any orders yet.
+                      </p>
+                      <Link href="/quotation" className="btn-get-started">
+                        Create New Order
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>
@@ -505,7 +699,7 @@ export default function Dashboard() {
                     className="detail-value"
                     style={{ textTransform: "capitalize" }}
                   >
-                    {basicQuote.delivery_speed}
+                    {getCarrierName(basicQuote.delivery_speed)}
                   </span>
                 </div>
                 <div className="quote-detail">
@@ -545,6 +739,104 @@ export default function Dashboard() {
             <Link href="/quotation" className="btn-get-started">
               Get a Quote
             </Link>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === "settings" && (
+          <div className="settings-section">
+            {/* Account Information */}
+            <div className="settings-card">
+              <div className="settings-header">
+                <div className="settings-icon">
+                  <User size={24} />
+                </div>
+                <div>
+                  <h3>Account Information</h3>
+                  <p>Your personal account details</p>
+                </div>
+              </div>
+              <div className="account-info-grid">
+                <div className="info-field">
+                  <label>Name</label>
+                  <div className="info-value">
+                    {user?.firstname} {user?.lastname}
+                  </div>
+                </div>
+                <div className="info-field">
+                  <label>Email</label>
+                  <div className="info-value">{user?.email}</div>
+                </div>
+                <div className="info-field">
+                  <label>Account Type</label>
+                  <div className="info-value">
+                    <span
+                      className={`account-type-badge ${user?.account_type === "business" ? "business" : "individual"}`}
+                    >
+                      {user?.account_type === "business"
+                        ? "Business"
+                        : "Individual"}
+                    </span>
+                  </div>
+                </div>
+                <div className="info-field">
+                  <label>Total Orders</label>
+                  <div className="info-value">
+                    <span className="order-count">{shipments.length}</span>
+                  </div>
+                </div>
+                <div className="info-field">
+                  <label>Country</label>
+                  <div className="info-value">{user?.country || "N/A"}</div>
+                </div>
+                <div className="info-field">
+                  <label>Phone</label>
+                  <div className="info-value">
+                    {user?.phone_number || "N/A"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="settings-card danger-zone">
+              <div className="settings-header">
+                <div className="settings-icon danger">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3>Danger Zone</h3>
+                  <p>Irreversible and destructive actions</p>
+                </div>
+              </div>
+              <div className="danger-content">
+                <div className="danger-info">
+                  <h4>Delete Account</h4>
+                  <p>
+                    Once you delete your account, there is no going back. All
+                    your shipment data, quotations, and personal information
+                    will be permanently deleted.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
+                  className="btn-delete-account"
+                >
+                  {deleteLoading ? (
+                    <>
+                      <div className="loading-spinner-small"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={18} />
+                      Delete My Account
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
@@ -1597,6 +1889,147 @@ export default function Dashboard() {
           box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
         }
 
+        /* Settings Section */
+        .settings-section {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .settings-card {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .settings-card.danger-zone {
+          border: 2px solid #fee2e2;
+          background: #fffbfb;
+        }
+
+        .settings-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          margin-bottom: 2rem;
+          padding-bottom: 1rem;
+          border-bottom: 2px solid #f3f4f6;
+        }
+
+        .settings-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .settings-icon.danger {
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .settings-header h3 {
+          font-size: 20px;
+          font-weight: 700;
+          color: #1f2937;
+          margin: 0 0 0.25rem 0;
+        }
+
+        .settings-header p {
+          font-size: 14px;
+          color: #6b7280;
+          margin: 0;
+        }
+
+        .account-info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.5rem;
+        }
+
+        .info-field label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #6b7280;
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .info-value {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .danger-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 2rem;
+        }
+
+        .danger-info {
+          flex: 1;
+        }
+
+        .danger-info h4 {
+          font-size: 18px;
+          font-weight: 700;
+          color: #dc2626;
+          margin: 0 0 0.75rem 0;
+        }
+
+        .danger-info p {
+          font-size: 14px;
+          color: #6b7280;
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        .btn-delete-account {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.875rem 1.75rem;
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+          white-space: nowrap;
+        }
+
+        .btn-delete-account:hover:not(:disabled) {
+          background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-delete-account:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .loading-spinner-small {
+          width: 18px;
+          height: 18px;
+          border: 3px solid rgba(255, 255, 255, 0.3);
+          border-top-color: white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
         /* Responsive Design */
         @media (max-width: 1024px) {
           .stats-grid {
@@ -1727,6 +2160,68 @@ export default function Dashboard() {
             gap: 0.5rem;
             text-align: center;
           }
+
+          .account-info-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .danger-content {
+            flex-direction: column;
+            gap: 1.5rem;
+          }
+
+          .btn-delete-account {
+            width: 100%;
+            justify-content: center;
+          }
+        }
+
+        /* Pending Orders Styles */
+        .shipment-card.pending {
+          border-left: 4px solid #f59e0b;
+          background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+
+        .status-badge.pending {
+          background-color: #f59e0b;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* Account Type Badge Styles */
+        .account-type-badge {
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: capitalize;
+          display: inline-block;
+        }
+
+        .account-type-badge.individual {
+          background-color: #dbeafe;
+          color: #1e40af;
+        }
+
+        .account-type-badge.business {
+          background-color: #dcfce7;
+          color: #166534;
+        }
+
+        /* Order Count Styles */
+        .order-count {
+          font-weight: 600;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .order-count:before {
+          content: "📦";
+          font-size: 14px;
         }
       `}</style>
     </div>

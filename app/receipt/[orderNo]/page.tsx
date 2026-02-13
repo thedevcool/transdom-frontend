@@ -48,11 +48,20 @@ interface OrderDetails {
   date_approved?: string;
 }
 
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed?.toLowerCase()] || speed;
+};
+
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const orderNo = params.orderNo as string;
-  
+
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -78,7 +87,9 @@ export default function ReceiptPage() {
         }
 
         const data = await response.json();
-        const foundOrder = data.shipments?.find((s: any) => s.order_no === orderNo);
+        const foundOrder = data.shipments?.find(
+          (s: any) => s.order_no === orderNo,
+        );
 
         if (!foundOrder) {
           setError("Order not found");
@@ -192,23 +203,34 @@ export default function ReceiptPage() {
   return (
     <>
       <Header />
-      
+
       <div className="receipt-page">
         <div className="receipt-actions no-print">
-          <button onClick={() => router.push("/dashboard")} className="btn-back">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="btn-back"
+          >
             ← Back to Dashboard
           </button>
           <div className="action-buttons">
             <button onClick={handlePrint} className="btn-print">
               <Printer size={16} /> Print
             </button>
-            <button 
-              onClick={handleDownloadPDF} 
+            <button
+              onClick={handleDownloadPDF}
               className="btn-download"
               disabled={downloading}
             >
-              {downloading ? "Generating PDF..." : (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+              {downloading ? (
+                "Generating PDF..."
+              ) : (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
                   <Download size={16} /> Download PDF
                 </span>
               )}
@@ -274,10 +296,18 @@ export default function ReceiptPage() {
                 <Send size={16} /> Sender Details
               </h3>
               <div className="party-details">
-                <p><strong>Name:</strong> {order.sender_name}</p>
-                <p><strong>Email:</strong> {order.sender_email}</p>
-                <p><strong>Phone:</strong> {order.sender_phone}</p>
-                <p><strong>Address:</strong> {order.sender_address}</p>
+                <p>
+                  <strong>Name:</strong> {order.sender_name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {order.sender_email}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {order.sender_phone}
+                </p>
+                <p>
+                  <strong>Address:</strong> {order.sender_address}
+                </p>
                 <p>
                   <strong>Location:</strong>{" "}
                   {[order.sender_city, order.sender_state, order.sender_country]
@@ -292,9 +322,15 @@ export default function ReceiptPage() {
                 <Inbox size={16} /> Receiver Details
               </h3>
               <div className="party-details">
-                <p><strong>Name:</strong> {order.receiver_name}</p>
-                <p><strong>Phone:</strong> {order.receiver_phone}</p>
-                <p><strong>Address:</strong> {order.receiver_address}</p>
+                <p>
+                  <strong>Name:</strong> {order.receiver_name}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {order.receiver_phone}
+                </p>
+                <p>
+                  <strong>Address:</strong> {order.receiver_address}
+                </p>
                 <p>
                   <strong>Location:</strong>{" "}
                   {[
@@ -306,7 +342,9 @@ export default function ReceiptPage() {
                     .join(", ")}
                 </p>
                 {order.receiver_post_code && (
-                  <p><strong>Postal Code:</strong> {order.receiver_post_code}</p>
+                  <p>
+                    <strong>Postal Code:</strong> {order.receiver_post_code}
+                  </p>
                 )}
               </div>
             </div>
@@ -322,11 +360,15 @@ export default function ReceiptPage() {
             <div className="shipment-grid">
               <div className="shipment-detail">
                 <span className="detail-label">Description:</span>
-                <span className="detail-value">{order.shipment_description}</span>
+                <span className="detail-value">
+                  {order.shipment_description}
+                </span>
               </div>
               <div className="shipment-detail">
                 <span className="detail-label">Quantity:</span>
-                <span className="detail-value">{order.shipment_quantity} item(s)</span>
+                <span className="detail-value">
+                  {order.shipment_quantity} item(s)
+                </span>
               </div>
               <div className="shipment-detail">
                 <span className="detail-label">Weight:</span>
@@ -335,17 +377,24 @@ export default function ReceiptPage() {
               {order.shipment_value && (
                 <div className="shipment-detail">
                   <span className="detail-label">Declared Value:</span>
-                  <span className="detail-value">₦{order.shipment_value.toLocaleString()}</span>
+                  <span className="detail-value">
+                    ₦{order.shipment_value.toLocaleString()}
+                  </span>
                 </div>
               )}
               <div className="shipment-detail">
                 <span className="detail-label">Destination Zone:</span>
-                <span className="detail-value">{order.zone_picked.replace(/_/g, " ")}</span>
+                <span className="detail-value">
+                  {order.zone_picked.replace(/_/g, " ")}
+                </span>
               </div>
               <div className="shipment-detail">
                 <span className="detail-label">Delivery Speed:</span>
-                <span className="detail-value" style={{ textTransform: "capitalize" }}>
-                  {order.delivery_speed}
+                <span
+                  className="detail-value"
+                  style={{ textTransform: "capitalize" }}
+                >
+                  {getCarrierName(order.delivery_speed)}
                 </span>
               </div>
             </div>
@@ -361,18 +410,24 @@ export default function ReceiptPage() {
             <div className="payment-table">
               <div className="payment-row">
                 <span className="payment-label">Shipping Fee:</span>
-                <span className="payment-value">₦{subtotal.toLocaleString()}</span>
+                <span className="payment-value">
+                  ₦{subtotal.toLocaleString()}
+                </span>
               </div>
               {order.add_insurance && order.insurance_fee > 0 && (
                 <div className="payment-row">
                   <span className="payment-label">Insurance Fee (2%):</span>
-                  <span className="payment-value">₦{order.insurance_fee.toLocaleString()}</span>
+                  <span className="payment-value">
+                    ₦{order.insurance_fee.toLocaleString()}
+                  </span>
                 </div>
               )}
               <div className="payment-divider"></div>
               <div className="payment-row total">
                 <span className="payment-label">Total Amount Paid:</span>
-                <span className="payment-value">₦{order.amount_paid.toLocaleString()}</span>
+                <span className="payment-value">
+                  ₦{order.amount_paid.toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
@@ -380,11 +435,12 @@ export default function ReceiptPage() {
           {/* Footer */}
           <div className="receipt-footer">
             <p className="footer-note">
-              Thank you for choosing Transdom Logistics. This is a computer-generated receipt
-              and does not require a signature.
+              Thank you for choosing Transdom Logistics. This is a
+              computer-generated receipt and does not require a signature.
             </p>
             <p className="footer-contact">
-              For inquiries, contact us at: support@transdomlogistics.com | +234 XXX XXX XXXX
+              For inquiries, contact us at: support@transdomlogistics.com | +234
+              XXX XXX XXXX
             </p>
           </div>
         </div>

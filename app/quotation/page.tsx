@@ -24,25 +24,47 @@ const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 // Get all countries with zone mapping
 const COUNTRIES = getAllCountries();
 
+interface CarrierPrice {
+  carrier: string;
+  zone: string;
+  price: string;
+  currency?: string;
+}
+
 interface DeliveryOption {
   speed: "economy" | "standard" | "express";
   price: string;
   estimated_delivery: string;
   multiplier: number;
+  carrier?: string;
+  zone?: string;
 }
 
 interface QuotationResult {
   pickup_country: string;
   destination_country: string;
-  destination_zone: string;
+  from_country_iso: string;
+  to_country_iso: string;
   weight: number;
   weight_rounded: number;
   currency: string;
   delivery_options: DeliveryOption[];
-  base_price: string;
+  carriers_data: CarrierPrice[];
+  unified_zone?: string;
+  unified_zone_display?: string;
 }
 
 type Step = "basic" | "delivery";
+
+// Map generic speed names to carrier names
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed.toLowerCase()] || speed;
+};
 
 export default function QuotationPage() {
   const router = useRouter();
@@ -229,7 +251,9 @@ export default function QuotationPage() {
       destination_state: quoteData.destinationState,
       destination_city: quoteData.destinationCity,
       weight: quotationResult.weight,
-      zone_picked: quotationResult.destination_zone,
+      zone_picked:
+        quotationResult.unified_zone_display ||
+        quotationResult.carriers_data.map((c) => c.carrier).join(", "),
       delivery_speed: selectedSpeed,
       amount_paid: parseFloat(selectedOption.price),
       estimated_delivery: selectedOption.estimated_delivery,
@@ -593,7 +617,12 @@ export default function QuotationPage() {
                       }}
                     >
                       <span>Zone:</span>
-                      <strong>{quotationResult.destination_zone}</strong>
+                      <strong>
+                        {quotationResult.unified_zone_display ||
+                          quotationResult.carriers_data
+                            .map((c) => c.carrier)
+                            .join(", ")}
+                      </strong>
                     </div>
                   </div>
 
@@ -642,7 +671,7 @@ export default function QuotationPage() {
                                 fontSize: "1.1rem",
                               }}
                             >
-                              {option.speed}
+                              {getCarrierName(option.speed)}
                             </strong>
                           </div>
                           <div

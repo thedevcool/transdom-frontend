@@ -194,11 +194,11 @@ export async function DELETE(
 }
 
 /**
- * PATCH /api/admin/orders/[orderId]
- * Update order status (admin only)
+ * PUT /api/admin/orders/[orderId]
+ * Update order details (admin only)
  * Uses admin Bearer token from HTTP-only cookie
  */
-export async function PATCH(
+export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> },
 ) {
@@ -249,7 +249,7 @@ export async function PATCH(
     const response = await fetch(
       `${API_BASE_URL}/api/admin/orders/${orderId}`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

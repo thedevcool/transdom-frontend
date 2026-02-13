@@ -9,6 +9,15 @@ import { Mail } from "lucide-react";
 const QUOTATION_STORAGE_KEY = "transdom_quotation_form";
 const BOOKING_STORAGE_KEY = "transdom_booking_details";
 
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed?.toLowerCase()] || speed;
+};
+
 function VerifyContent() {
   const searchParams = useSearchParams();
   const reference = searchParams.get("reference");
@@ -50,7 +59,11 @@ function VerifyContent() {
       const bookingDetails = JSON.parse(savedBooking);
 
       // The booking details are stored in a flat structure from the dashboard
-      if (!bookingDetails.zone_picked || !bookingDetails.delivery_speed || !bookingDetails.amount_paid) {
+      if (
+        !bookingDetails.zone_picked ||
+        !bookingDetails.delivery_speed ||
+        !bookingDetails.amount_paid
+      ) {
         throw new Error("Quotation details not found.");
       }
 
@@ -135,8 +148,7 @@ function VerifyContent() {
         style={{
           backgroundColor: "#fff",
           borderBottom: "1px solid #e5e7eb",
-          padding:
-            "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
+          padding: "clamp(0.75rem, 2vw, 1rem) clamp(1rem, 4vw, 2rem)",
         }}
       >
         <nav
@@ -176,8 +188,7 @@ function VerifyContent() {
       {/* Main Content */}
       <section
         style={{
-          padding:
-            "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
+          padding: "clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem)",
           backgroundColor: "#f9fafb",
           minHeight: "80vh",
           display: "flex",
@@ -407,7 +418,7 @@ function VerifyContent() {
                             textTransform: "capitalize",
                           }}
                         >
-                          {orderDetails.delivery_speed}
+                          {getCarrierName(orderDetails.delivery_speed)}
                         </span>
                       </div>
                       <div
@@ -442,9 +453,15 @@ function VerifyContent() {
                   }}
                 >
                   <p style={{ fontSize: "14px", color: "#065f46", margin: 0 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                      <Mail size={16} /> A confirmation email has been sent to your registered
-                      email address.
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <Mail size={16} /> A confirmation email has been sent to
+                      your registered email address.
                     </span>
                   </p>
                 </div>
@@ -635,7 +652,13 @@ function VerifyContent() {
                       display: "block",
                     }}
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <Mail size={16} /> Contact Support
                     </span>
                   </a>

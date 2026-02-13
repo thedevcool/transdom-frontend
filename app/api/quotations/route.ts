@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getZoneForCountry, getZoneDisplayName } from "../../../lib/zone-mapping";
+import {
+  getZoneForCountry,
+  getZoneDisplayName,
+} from "../../../lib/zone-mapping";
+import { getCountryIsoCode } from "../../../lib/countries-data";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -38,11 +42,18 @@ interface BookingDetailsRequest {
   delivery_speed: "economy" | "standard" | "express";
 }
 
-interface PriceResponse {
+interface CarrierPrice {
+  carrier: string;
   zone: string;
-  weight: number;
   price: string;
-  currency: string;
+  currency?: string;
+}
+
+interface ComparePricesResponse {
+  from_country: string;
+  to_country: string;
+  weight: number;
+  prices: CarrierPrice[];
 }
 
 interface DeliveryOption {
@@ -50,6 +61,8 @@ interface DeliveryOption {
   price: string;
   estimated_delivery: string;
   multiplier: number;
+  carrier?: string;
+  zone?: string;
 }
 
 /**
@@ -79,93 +92,122 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Map destination country to zone
-    const destinationZone = getZoneForCountry(body.destinationCountry);
+    // Get ISO codes for countries
+    const fromCountryIso = getCountryIsoCode(body.pickupCountry);
+    const toCountryIso = getCountryIsoCode(body.destinationCountry);
 
-    if (!destinationZone) {
+    if (!fromCountryIso || !toCountryIso) {
       return NextResponse.json(
         {
-          detail: `Unsupported destination country: ${body.destinationCountry}`,
-          suggestion:
-            "Please check the country name or contact support for shipping to this location.",
+          detail: `Invalid country names. Could not find ISO codes for: ${body.pickupCountry} or ${body.destinationCountry}`,
         },
         { status: 400 },
       );
     }
 
-    console.log(`Mapped ${body.destinationCountry} -> ${destinationZone}`);
+    console.log(
+      `Mapped countries: ${body.pickupCountry} (${fromCountryIso}) -> ${body.destinationCountry} (${toCountryIso})`,
+    );
 
     // Round up weight to nearest whole number
     const weightRounded = Math.ceil(body.weight);
 
-    // Fetch base price from FastAPI backend: GET /api/rates/{zone}/price?weight={weight}
-    const priceUrl = `${API_BASE_URL}/api/rates/${encodeURIComponent(destinationZone)}/price?weight=${weightRounded}`;
-    console.log(`Fetching price from: ${priceUrl}`);
+    // Fetch prices from all carriers using compare-prices endpoint
+    const compareUrl = `${API_BASE_URL}/api/compare-prices?from_country=${encodeURIComponent(fromCountryIso)}&to_country=${encodeURIComponent(toCountryIso)}&weight=${weightRounded}`;
+    console.log(`Fetching prices from: ${compareUrl}`);
 
-    const response = await fetch(priceUrl);
+    const response = await fetch(compareUrl);
 
     if (!response.ok) {
       const error = await response
         .json()
-        .catch(() => ({ detail: "Failed to fetch price" }));
+        .catch(() => ({ detail: "Failed to fetch prices" }));
       return NextResponse.json(
         {
           detail:
             error.detail ||
-            `Failed to fetch price for zone: ${destinationZone}`,
+            `Failed to fetch prices for route: ${fromCountryIso} to ${toCountryIso}`,
         },
         { status: response.status },
       );
     }
 
-    const priceResponse = (await response.json()) as PriceResponse;
+    const compareResponse = (await response.json()) as ComparePricesResponse;
 
-    // Parse the price (handles both numeric and formatted string like "1,234.56")
-    const basePriceStr = priceResponse.price.toString().replace(/,/g, "");
-    const standardPrice = parseFloat(basePriceStr);
-
-    if (isNaN(standardPrice)) {
+    if (!compareResponse.prices || compareResponse.prices.length === 0) {
       return NextResponse.json(
-        { detail: "Invalid price returned from backend" },
-        { status: 500 },
+        {
+          detail: `No shipping rates found for route: ${body.pickupCountry} to ${body.destinationCountry}`,
+        },
+        { status: 404 },
       );
     }
 
-    // Calculate all three delivery options
-    // Standard is the base price from DB
-    // Express is 2x standard
-    // Economy is standard / 2
-    const deliveryOptions: DeliveryOption[] = [
-      {
-        speed: "economy",
-        price: (standardPrice / 2).toFixed(2),
-        estimated_delivery: "14-21 business days",
-        multiplier: 0.5,
-      },
-      {
-        speed: "standard",
-        price: standardPrice.toFixed(2),
-        estimated_delivery: "7-10 business days",
-        multiplier: 1.0,
-      },
-      {
-        speed: "express",
-        price: (standardPrice * 2).toFixed(2),
-        estimated_delivery: "3-5 business days",
-        multiplier: 2.0,
-      },
-    ];
+    // Map carriers to delivery options
+    // DHL -> express, FedEx -> standard, UPS -> economy
+    const carrierToSpeed: Record<string, "economy" | "standard" | "express"> = {
+      DHL: "express",
+      FEDEX: "standard",
+      UPS: "economy",
+    };
+
+    const deliveryOptions: DeliveryOption[] = compareResponse.prices
+      .filter((price) => carrierToSpeed[price.carrier.toUpperCase()])
+      .map((price) => {
+        const speed = carrierToSpeed[price.carrier.toUpperCase()];
+        const priceNum = parseFloat(price.price.replace(/,/g, ""));
+
+        let estimated_delivery: string;
+        switch (speed) {
+          case "express":
+            estimated_delivery = "3-5 business days";
+            break;
+          case "standard":
+            estimated_delivery = "7-10 business days";
+            break;
+          case "economy":
+            estimated_delivery = "14-21 business days";
+            break;
+        }
+
+        return {
+          speed,
+          price: priceNum.toFixed(2),
+          estimated_delivery,
+          multiplier: 1.0, // Not used anymore, but keep for compatibility
+          carrier: price.carrier,
+          zone: price.zone,
+        };
+      });
+
+    // Sort by speed order: economy, standard, express
+    deliveryOptions.sort((a, b) => {
+      const order = { economy: 0, standard: 1, express: 2 };
+      return order[a.speed] - order[b.speed];
+    });
+
+    // Use the first price's currency, or default to NGN
+    const currency = compareResponse.prices[0]?.currency || "NGN";
+
+    // Get unified zone for display purposes
+    const unifiedZone = getZoneForCountry(body.destinationCountry);
+    const unifiedZoneDisplay = unifiedZone
+      ? getZoneDisplayName(unifiedZone)
+      : "Multiple Carriers";
 
     return NextResponse.json(
       {
         pickup_country: body.pickupCountry,
         destination_country: body.destinationCountry,
-        destination_zone: getZoneDisplayName(destinationZone),
+        from_country_iso: fromCountryIso,
+        to_country_iso: toCountryIso,
         weight: body.weight,
         weight_rounded: weightRounded,
-        currency: priceResponse.currency || "NGN",
+        currency,
         delivery_options: deliveryOptions,
-        base_price: standardPrice.toFixed(2), // Standard price from DB
+        carriers_data: compareResponse.prices, // Include full carrier data for reference
+        unified_zone: unifiedZone,
+        unified_zone_display: unifiedZoneDisplay,
       },
       { status: 200 },
     );
@@ -220,52 +262,79 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Map destination country to zone
-    const destinationZone = getZoneForCountry(body.destinationCountry);
+    // Get ISO codes for countries
+    const fromCountryIso = getCountryIsoCode(body.sender_country);
+    const toCountryIso = getCountryIsoCode(body.destinationCountry);
 
-    if (!destinationZone) {
+    if (!fromCountryIso || !toCountryIso) {
       return NextResponse.json(
         {
-          detail: `Unsupported destination country: ${body.destinationCountry}`,
+          detail: `Invalid country names. Could not find ISO codes for: ${body.sender_country} or ${body.destinationCountry}`,
         },
         { status: 400 },
       );
     }
 
-    // Calculate final price based on delivery speed
-    const weightRounded = Math.ceil(body.weight);
-    const priceUrl = `${API_BASE_URL}/api/rates/${encodeURIComponent(destinationZone)}/price?weight=${weightRounded}`;
-    const priceResponse = await fetch(priceUrl);
+    // Calculate final price based on delivery speed using compare-prices
+    const weightRounded = Math.ceil(body.shipment_weight);
+    const compareUrl = `${API_BASE_URL}/api/compare-prices?from_country=${encodeURIComponent(fromCountryIso)}&to_country=${encodeURIComponent(toCountryIso)}&weight=${weightRounded}`;
+    const compareResponse = await fetch(compareUrl);
 
-    if (!priceResponse.ok) {
+    if (!compareResponse.ok) {
       return NextResponse.json(
-        { detail: "Failed to fetch price" },
+        { detail: "Failed to fetch carrier prices" },
         { status: 500 },
       );
     }
 
-    const priceData = (await priceResponse.json()) as PriceResponse;
-    const basePriceStr = priceData.price.toString().replace(/,/g, "");
-    const standardPrice = parseFloat(basePriceStr);
+    const compareData = (await compareResponse.json()) as ComparePricesResponse;
 
-    // Calculate final price based on delivery speed
-    let finalPrice = standardPrice;
-    if (body.delivery_speed === "economy") {
-      finalPrice = standardPrice / 2;
-    } else if (body.delivery_speed === "express") {
-      finalPrice = standardPrice * 2;
+    if (!compareData.prices || compareData.prices.length === 0) {
+      return NextResponse.json(
+        { detail: "No carrier prices found for this route" },
+        { status: 404 },
+      );
     }
+
+    // Map delivery speed to carrier
+    const speedToCarrier: Record<string, string> = {
+      express: "DHL",
+      standard: "FEDEX",
+      economy: "UPS",
+    };
+
+    const selectedCarrier = speedToCarrier[body.delivery_speed];
+    const carrierPrice = compareData.prices.find(
+      (price) => price.carrier.toUpperCase() === selectedCarrier,
+    );
+
+    if (!carrierPrice) {
+      return NextResponse.json(
+        { detail: `Price not available for ${selectedCarrier} on this route` },
+        { status: 400 },
+      );
+    }
+
+    const finalPrice = parseFloat(carrierPrice.price.replace(/,/g, ""));
+
+    // Get unified zone for display purposes
+    const unifiedZone = getZoneForCountry(body.destinationCountry);
+    const unifiedZoneDisplay = unifiedZone
+      ? getZoneDisplayName(unifiedZone)
+      : `${fromCountryIso} to ${toCountryIso}`;
 
     // Return quotation summary for user to review before payment
     // This does NOT create the order yet - that happens after payment
     return NextResponse.json(
       {
-        zone_picked: destinationZone,
-        zone_display: getZoneDisplayName(destinationZone),
+        zone_picked:
+          unifiedZone || compareData.prices.map((p) => p.carrier).join(", "),
+        zone_display: unifiedZoneDisplay,
         weight: body.shipment_weight,
         delivery_speed: body.delivery_speed,
+        carrier: selectedCarrier,
         amount: finalPrice,
-        currency: priceData.currency || "NGN",
+        currency: carrierPrice.currency || "NGN",
         booking_details: {
           sender: {
             name: body.sender_name,

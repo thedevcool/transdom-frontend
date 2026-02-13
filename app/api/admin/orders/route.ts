@@ -181,3 +181,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ detail: errorMessage }, { status: 400 });
   }
 }
+
+/**
+ * DELETE /api/admin/orders
+ * Delete all orders (admin only)
+ * Uses admin Bearer token from HTTP-only cookie
+ * DANGEROUS: This deletes ALL orders in the system
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    // Get admin token from HTTP-only cookie OR Authorization header
+    let token = request.cookies.get("admin_auth_token")?.value;
+
+    // Fallback to Authorization header if cookie not present
+    if (!token) {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
+      return NextResponse.json(
+        { detail: "Unauthorized - Admin access required" },
+        { status: 401 },
+      );
+    }
+
+    // Forward to FastAPI backend with admin token
+    const response = await fetch(`${API_BASE_URL}/api/admin/orders`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Failed to delete all orders" }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error("Admin delete all orders error:", error);
+
+    // Don't expose internal error details in production
+    const isProduction = process.env.NODE_ENV === "production";
+    const errorMessage = isProduction
+      ? "Failed to delete all orders. Please try again."
+      : error instanceof Error
+        ? error.message
+        : "Failed to delete all orders";
+
+    return NextResponse.json({ detail: errorMessage }, { status: 400 });
+  }
+}

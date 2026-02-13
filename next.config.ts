@@ -13,11 +13,7 @@ const nextConfig: NextConfig = {
   },
   // Compression
   compress: true,
-  // Code splitting optimization
-  swcMinify: true,
   productionBrowserSourceMaps: false,
-  // Optimized font loading
-  optimizeFonts: true,
 };
 
 export default nextConfig;

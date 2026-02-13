@@ -25,6 +25,7 @@ export default function SignUpPage() {
     referralCode: "",
     country: "",
     gender: "",
+    userType: "Individual",
   });
 
   // Calculate form completion progress
@@ -38,6 +39,7 @@ export default function SignUpPage() {
       "confirmPassword",
       "gender",
       "country",
+      "userType",
     ];
     const filledFields = requiredFields.filter(
       (field) => formData[field as keyof typeof formData].length > 0,
@@ -74,6 +76,7 @@ export default function SignUpPage() {
           password: formData.password,
           phone_number: formData.phoneNumber || undefined,
           referral_code: formData.referralCode || undefined,
+          user_type: formData.userType,
         }),
       });
 
@@ -270,6 +273,22 @@ export default function SignUpPage() {
                 </select>
               </div>
 
+              <div className="form-group-signup">
+                <label htmlFor="userType">Account Type</label>
+                <select
+                  id="userType"
+                  name="userType"
+                  value={formData.userType}
+                  onChange={handleChange}
+                  onFocus={() => setFocusedField("userType")}
+                  onBlur={() => setFocusedField(null)}
+                  required
+                >
+                  <option value="Individual">Individual</option>
+                  <option value="Business">Business</option>
+                </select>
+              </div>
+
               <div
                 className={`form-group-signup animated-input ${focusedField === "password" ? "focused" : ""} ${formData.password ? "filled" : ""}`}
               >
@@ -319,7 +338,11 @@ export default function SignUpPage() {
                     className="password-toggle"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
-                    {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                    {showConfirmPassword ? (
+                      <Eye size={18} />
+                    ) : (
+                      <EyeOff size={18} />
+                    )}
                   </button>
                 </div>
               </div>

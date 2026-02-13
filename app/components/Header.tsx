@@ -18,16 +18,39 @@ export default function Header() {
     const updateAuthState = () => {
       const isAuth = hasValidAuth();
       const currentUser = getAuthUser();
-      setToken(isAuth ? "authenticated" : null);
-      setUser(currentUser);
+
+      // Only update token if it actually changed
+      const newToken = isAuth ? "authenticated" : null;
+      setToken((prevToken) => {
+        if (prevToken !== newToken) {
+          return newToken;
+        }
+        return prevToken;
+      });
+
+      // Only update user if it actually changed
+      setUser((prevUser: any) => {
+        // Check if user data actually changed
+        if (
+          (!prevUser && !currentUser) ||
+          (prevUser &&
+            currentUser &&
+            prevUser.email === currentUser.email &&
+            prevUser.firstname === currentUser.firstname &&
+            prevUser.lastname === currentUser.lastname)
+        ) {
+          return prevUser;
+        }
+        return currentUser;
+      });
     };
 
     // Initial check
     updateAuthState();
     setMounted(true);
 
-    // Check periodically for auth changes (cookie updates)
-    const interval = setInterval(updateAuthState, 500);
+    // Check periodically for auth changes (cookie updates) - less frequently
+    const interval = setInterval(updateAuthState, 2000);
 
     return () => {
       clearInterval(interval);

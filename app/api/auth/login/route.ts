@@ -15,6 +15,7 @@ interface AuthUser {
   country: string;
   referral_code?: string | null;
   photo_url?: string | null;
+  is_suspended?: boolean;
 }
 
 interface LoginResponse {
@@ -105,6 +106,24 @@ export async function POST(request: NextRequest) {
     return nextResponse;
   } catch (error) {
     console.error("Login error:", error);
+
+    // Check if it's a suspension error from backend
+    if (
+      error instanceof Error &&
+      (error.message.includes("suspended") ||
+        error.message.includes("Suspended") ||
+        error.message.includes("403"))
+    ) {
+      return NextResponse.json(
+        {
+          detail:
+            "Your account has been suspended. Please contact support for assistance or wait until it is lifted.",
+          error_code: "ACCOUNT_SUSPENDED",
+          contact_support: true,
+        },
+        { status: 403 },
+      );
+    }
 
     // Don't expose internal error details in production
     const isProduction = process.env.NODE_ENV === "production";

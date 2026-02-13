@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -21,6 +22,12 @@ import {
   Plus,
   Save,
   X,
+  Eye,
+  Download,
+  FileSpreadsheet,
+  Users,
+  Shield,
+  UserPlus,
 } from "lucide-react";
 
 interface Order {
@@ -75,6 +82,15 @@ interface ShippingRate {
   rates: RateEntry[];
 }
 
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed?.toLowerCase()] || speed;
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [admin, setAdmin] = useState<any>(null);
@@ -92,9 +108,13 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [editedOrder, setEditedOrder] = useState<Order | null>(null);
 
   // Zones management states
-  const [activeTab, setActiveTab] = useState<"orders" | "zones">("orders");
+  const [activeTab, setActiveTab] = useState<
+    "orders" | "zones" | "users" | "pricing" | "emails" | "admins"
+  >("users"); // Default to users since all roles have access
   const [zones, setZones] = useState<ShippingRate[]>([]);
   const [zonesLoading, setZonesLoading] = useState(false);
   const [showZoneModal, setShowZoneModal] = useState(false);
@@ -105,6 +125,152 @@ export default function AdminDashboard() {
     unit: "kg",
     rates: [{ weight: 0, price: 0 }],
   });
+  // User management states
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+
+  // Pricing management states
+  const [selectedCarrier, setSelectedCarrier] = useState<string>("DHL");
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{
+    type: string | null;
+    message: string;
+  }>({
+    type: null,
+    message: "",
+  });
+
+  // Email management states
+  const [selectedUserForEmail, setSelectedUserForEmail] = useState<any | null>(
+    null,
+  );
+  const [userOrdersForEmail, setUserOrdersForEmail] = useState<Order[]>([]);
+  const [emailForm, setEmailForm] = useState({
+    to_email: "",
+    subject: "",
+    message: "",
+    user_name: "",
+  });
+  const [emailSending, setEmailSending] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Admin management states
+  const [adminsList, setAdminsList] = useState<any[]>([]);
+  const [adminsLoading, setAdminsLoading] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
+  const [selectedAdminForEdit, setSelectedAdminForEdit] = useState<any | null>(
+    null,
+  );
+  const [adminForm, setAdminForm] = useState({
+    name: "",
+    password: "",
+    role: "support" as "admin" | "account" | "support",
+  });
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
+
+  // Email templates
+  const emailTemplates = [
+    {
+      id: "order_shipped",
+      name: "Order Shipped",
+      subject: "Your order has been shipped - Order #{order_no}",
+      message: `Dear {name},
+
+Great news! Your order #{order_no} has been shipped and is on its way to you.
+
+Order Details:
+- Zone: {zone}
+- Weight: {weight} kg
+- Delivery Speed: {delivery_speed}
+- Amount Paid: ₦{amount}
+
+Your package will arrive within the estimated delivery time based on the shipping method selected.
+
+If you have any questions or concerns, please don't hesitate to contact our support team.
+
+Best regards,
+The Transdom Express Team`,
+    },
+    {
+      id: "order_approved",
+      name: "Order Approved",
+      subject: "Your order has been approved - Order #{order_no}",
+      message: `Dear {name},
+
+We are pleased to inform you that your order #{order_no} has been approved and is now being processed.
+
+Order Details:
+- Zone: {zone}
+- Weight: {weight} kg
+- Amount Paid: ₦{amount}
+
+We will prepare your shipment and notify you once it's on its way.
+
+Thank you for choosing Transdom Express!
+
+Best regards,
+The Transdom Express Team`,
+    },
+    {
+      id: "order_delayed",
+      name: "Order Delayed",
+      subject: "Update on your order - Order #{order_no}",
+      message: `Dear {name},
+
+We wanted to inform you about a delay with your order #{order_no}.
+
+We sincerely apologize for any inconvenience this may cause. Our team is working diligently to resolve the issue and get your shipment back on track.
+
+We will keep you updated on the progress and notify you as soon as your order is ready to ship.
+
+If you have any questions or concerns, please contact our support team.
+
+Thank you for your patience and understanding.
+
+Best regards,
+The Transdom Express Team`,
+    },
+    {
+      id: "custom_update",
+      name: "Custom Update",
+      subject: "Update regarding your order - Order #{order_no}",
+      message: `Dear {name},
+
+We wanted to reach out regarding your order #{order_no}.
+
+[Your custom message here]
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Best regards,
+The Transdom Express Team`,
+    },
+    {
+      id: "account_update",
+      name: "Account Update",
+      subject: "Important update about your account",
+      message: `Dear {name},
+
+We wanted to inform you about an important update regarding your Transdom Express account.
+
+[Your message here]
+
+If you have any questions or need assistance, our support team is here to help.
+
+Best regards,
+The Transdom Express Team`,
+    },
+    {
+      id: "blank",
+      name: "Blank Template",
+      subject: "",
+      message: "",
+    },
+  ];
 
   const checkAdminAuth = useCallback(() => {
     try {
@@ -149,11 +315,8 @@ export default function AdminDashboard() {
         }
         params.append("limit", "100");
 
-        console.log("Fetching orders with credentials...");
-
         // Get token from localStorage
         const token = localStorage.getItem("admin_auth_token");
-        console.log("Token from localStorage:", !!token);
 
         const headers: HeadersInit = {
           "Content-Type": "application/json",
@@ -181,8 +344,20 @@ export default function AdminDashboard() {
             response.status,
             response.statusText,
           );
-          if (response.status === 401) {
-            console.error("Unauthorized - redirecting to login");
+
+          // Check for authentication errors
+          const errorData = await response.json().catch(() => ({ detail: "" }));
+          const isAuthError =
+            response.status === 401 ||
+            (errorData.detail &&
+              errorData.detail.toLowerCase().includes("credentials"));
+
+          if (isAuthError) {
+            console.error("Authentication failed - redirecting to login");
+            // Clear invalid tokens
+            localStorage.removeItem("admin_auth_token");
+            document.cookie =
+              "admin_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
             router.push("/admin/login");
             return;
           }
@@ -299,6 +474,807 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteAllOrders = async () => {
+    // Triple confirmation for this dangerous action
+    if (
+      !confirm(
+        `⚠️ WARNING: This will permanently delete ALL ${orders.length} orders in the system!\n\nThis action cannot be undone. Are you sure?`,
+      )
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        "This is your second warning. ALL orders will be permanently deleted. Continue?",
+      )
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        "FINAL WARNING: Type 'DELETE' in the next prompt to confirm.\n\nClick OK to proceed to the final confirmation.",
+      )
+    ) {
+      return;
+    }
+
+    const confirmText = prompt(
+      "Type DELETE (in capital letters) to confirm deletion of all orders:",
+    );
+    if (confirmText !== "DELETE") {
+      alert("Deletion cancelled. The text did not match.");
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await fetch("/api/admin/orders", {
+        method: "DELETE",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to delete all orders");
+      }
+
+      const data = await response.json();
+      alert(
+        `✅ Success: ${data.deleted_count || "All"} orders have been permanently deleted.`,
+      );
+
+      // Refresh orders list
+      await fetchOrders();
+    } catch (error) {
+      console.error("Failed to delete all orders:", error);
+      alert(
+        `❌ Error: ${error instanceof Error ? error.message : "Failed to delete all orders"}`,
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditOrder = () => {
+    setEditedOrder({ ...selectedOrder! });
+    setIsEditingOrder(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedOrder(null);
+    setIsEditingOrder(false);
+  };
+
+  const handleUpdateOrder = async () => {
+    if (!editedOrder || !selectedOrder) return;
+
+    if (
+      !confirm(
+        "Are you sure you want to update this order? This will modify the order details.",
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${selectedOrder._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          sender_name: editedOrder.sender_name,
+          sender_phone: editedOrder.sender_phone,
+          sender_address: editedOrder.sender_address,
+          sender_city: editedOrder.sender_city,
+          sender_state: editedOrder.sender_state,
+          sender_country: editedOrder.sender_country,
+          sender_email: editedOrder.sender_email,
+          receiver_name: editedOrder.receiver_name,
+          receiver_phone: editedOrder.receiver_phone,
+          receiver_address: editedOrder.receiver_address,
+          receiver_city: editedOrder.receiver_city,
+          receiver_state: editedOrder.receiver_state,
+          receiver_post_code: editedOrder.receiver_post_code,
+          receiver_country: editedOrder.receiver_country,
+          shipment_description: editedOrder.shipment_description,
+          shipment_quantity: editedOrder.shipment_quantity,
+          shipment_value: editedOrder.shipment_value,
+          shipment_weight: editedOrder.shipment_weight,
+          weight: editedOrder.weight,
+          zone_picked: editedOrder.zone_picked,
+          delivery_speed: editedOrder.delivery_speed,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to update order");
+      }
+
+      const updatedOrder = await response.json();
+
+      // Update local state
+      setSelectedOrder(updatedOrder);
+      setIsEditingOrder(false);
+      setEditedOrder(null);
+
+      // Refresh orders list
+      await fetchOrders(filterStatus === "all" ? undefined : filterStatus);
+
+      alert("✅ Order updated successfully!");
+    } catch (error) {
+      console.error("Failed to update order:", error);
+      alert(
+        `❌ Error: ${error instanceof Error ? error.message : "Failed to update order"}`,
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Download functions for Orders
+  const downloadOrdersCSV = () => {
+    if (orders.length === 0) {
+      alert("No orders to download");
+      return;
+    }
+
+    // Prepare CSV data with all order fields
+    const csvData = orders.map((order) => ({
+      "Order No": order.order_no,
+      Status: order.status,
+      "Date Created": new Date(order.date_created).toLocaleString(),
+      Email: order.email,
+      "Sender Name": order.sender_name || "",
+      "Sender Phone": order.sender_phone || "",
+      "Sender Email": order.sender_email || "",
+      "Sender Address": order.sender_address || "",
+      "Sender City": order.sender_city || "",
+      "Sender State": order.sender_state || "",
+      "Sender Country": order.sender_country || "",
+      "Receiver Name": order.receiver_name || "",
+      "Receiver Phone": order.receiver_phone || "",
+      "Receiver Address": order.receiver_address || "",
+      "Receiver City": order.receiver_city || "",
+      "Receiver State": order.receiver_state || "",
+      "Receiver Country": order.receiver_country || "",
+      "Receiver Postal Code": order.receiver_post_code || "",
+      "Shipment Description": order.shipment_description || "",
+      "Shipment Quantity": order.shipment_quantity || "",
+      "Shipment Weight (kg)": order.shipment_weight || order.weight,
+      "Shipment Value (NGN)": order.shipment_value || "",
+      Zone: order.zone_picked,
+      "Delivery Speed": getCarrierName(order.delivery_speed),
+      "Amount Paid (NGN)": order.amount_paid,
+    }));
+
+    // Convert to CSV
+    const worksheet = XLSX.utils.json_to_sheet(csvData);
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+    // Create download link
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `orders_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadOrdersExcel = () => {
+    if (orders.length === 0) {
+      alert("No orders to download");
+      return;
+    }
+
+    // Prepare Excel data
+    const excelData = orders.map((order) => ({
+      "Order No": order.order_no,
+      Status: order.status,
+      "Date Created": new Date(order.date_created).toLocaleString(),
+      Email: order.email,
+      "Sender Name": order.sender_name || "",
+      "Sender Phone": order.sender_phone || "",
+      "Sender Email": order.sender_email || "",
+      "Sender Address": order.sender_address || "",
+      "Sender City": order.sender_city || "",
+      "Sender State": order.sender_state || "",
+      "Sender Country": order.sender_country || "",
+      "Receiver Name": order.receiver_name || "",
+      "Receiver Phone": order.receiver_phone || "",
+      "Receiver Address": order.receiver_address || "",
+      "Receiver City": order.receiver_city || "",
+      "Receiver State": order.receiver_state || "",
+      "Receiver Country": order.receiver_country || "",
+      "Receiver Postal Code": order.receiver_post_code || "",
+      "Shipment Description": order.shipment_description || "",
+      "Shipment Quantity": order.shipment_quantity || "",
+      "Shipment Weight (kg)": order.shipment_weight || order.weight,
+      "Shipment Value (NGN)": order.shipment_value || "",
+      Zone: order.zone_picked,
+      "Delivery Speed": getCarrierName(order.delivery_speed),
+      "Amount Paid (NGN)": order.amount_paid,
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+
+    // Auto-size columns
+    const maxWidth = 50;
+    const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+      wch: Math.min(
+        maxWidth,
+        Math.max(
+          key.length,
+          ...excelData.map(
+            (row) => String(row[key as keyof typeof row] || "").length,
+          ),
+        ),
+      ),
+    }));
+    worksheet["!cols"] = colWidths;
+
+    // Download
+    XLSX.writeFile(
+      workbook,
+      `orders_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
+  };
+
+  // Download functions for Users
+  const downloadUsersCSV = () => {
+    if (users.length === 0) {
+      alert("No users to download");
+      return;
+    }
+
+    // Prepare CSV data
+    const csvData = users.map((user) => ({
+      "User ID": user.id,
+      "First Name": user.firstname,
+      "Last Name": user.lastname,
+      Email: user.email,
+      Gender: user.gender,
+      Country: user.country,
+      "Phone Number": user.phone_number || "",
+      "User Type": user.user_type,
+      Suspended: user.is_suspended ? "Yes" : "No",
+      "Created At": new Date(user.created_at).toLocaleString(),
+    }));
+
+    // Convert to CSV
+    const worksheet = XLSX.utils.json_to_sheet(csvData);
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+    // Create download link
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `users_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadUsersExcel = () => {
+    if (users.length === 0) {
+      alert("No users to download");
+      return;
+    }
+
+    // Prepare Excel data
+    const excelData = users.map((user) => ({
+      "User ID": user.id,
+      "First Name": user.firstname,
+      "Last Name": user.lastname,
+      Email: user.email,
+      Gender: user.gender,
+      Country: user.country,
+      "Phone Number": user.phone_number || "",
+      "User Type": user.user_type,
+      Suspended: user.is_suspended ? "Yes" : "No",
+      "Created At": new Date(user.created_at).toLocaleString(),
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+
+    // Auto-size columns
+    const maxWidth = 50;
+    const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+      wch: Math.min(
+        maxWidth,
+        Math.max(
+          key.length,
+          ...excelData.map(
+            (row) => String(row[key as keyof typeof row] || "").length,
+          ),
+        ),
+      ),
+    }));
+    worksheet["!cols"] = colWidths;
+
+    // Download
+    XLSX.writeFile(
+      workbook,
+      `users_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
+  };
+
+  // Email functionality handlers
+  const handleUserSelect = (userId: string) => {
+    if (!userId) {
+      // Clear selection if empty
+      setSelectedUserForEmail(null);
+      setUserOrdersForEmail([]);
+      setEmailForm({
+        to_email: "",
+        subject: "",
+        message: "",
+        user_name: "",
+      });
+      return;
+    }
+
+    const user = users.find((u) => u.id === userId);
+    if (!user) {
+      console.log("User not found:", userId);
+      return;
+    }
+
+    console.log("Selected user:", user);
+    console.log("All orders:", orders.length);
+
+    setSelectedUserForEmail(user);
+    setEmailForm({
+      to_email: user.email,
+      subject: "",
+      message: "",
+      user_name: `${user.firstname} ${user.lastname}`,
+    });
+
+    // Debug: check all email fields in orders
+    console.log(
+      "Sample order data:",
+      orders.slice(0, 3).map((o) => ({
+        email: o.email,
+        sender_email: o.sender_email,
+        _id: o._id,
+        order_no: o.order_no,
+      })),
+    );
+
+    // Filter user's orders - check both email and sender_email fields
+    const userEmail = user.email.toLowerCase().trim();
+    const userOrders = orders.filter((order) => {
+      const orderEmail = (order.email || order.sender_email || "")
+        .toLowerCase()
+        .trim();
+      return orderEmail === userEmail;
+    });
+
+    console.log(
+      "Filtered user orders:",
+      userOrders.length,
+      "for email:",
+      user.email,
+    );
+    setUserOrdersForEmail(userOrders);
+  };
+
+  const handleInsertOrderDetails = (order: Order) => {
+    const orderDetails = `
+--- Order #${order.order_no} ---
+Zone: ${order.zone_picked}
+Weight: ${order.shipment_weight || order.weight} kg
+Delivery Speed: ${getCarrierName(order.delivery_speed)}
+Amount Paid: ₦${order.amount_paid?.toLocaleString()}
+Status: ${order.status}
+Date: ${new Date(order.date_created).toLocaleDateString()}
+--- End Order Details ---
+`;
+
+    const textarea = messageTextareaRef.current;
+    if (!textarea) return;
+
+    const cursorPosition = textarea.selectionStart || emailForm.message.length;
+    const textBefore = emailForm.message.substring(0, cursorPosition);
+    const textAfter = emailForm.message.substring(cursorPosition);
+    const newMessage = textBefore + orderDetails + textAfter;
+
+    setEmailForm((prev) => ({
+      ...prev,
+      message: newMessage,
+    }));
+
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      if (textarea) {
+        const newCursorPosition = cursorPosition + orderDetails.length;
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
+    }, 0);
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    const template = emailTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    setSelectedTemplate(templateId);
+
+    let subject = template.subject;
+    let message = template.message;
+
+    // Replace placeholders with user data if user is selected
+    if (selectedUserForEmail) {
+      const userName = `${selectedUserForEmail.firstname} ${selectedUserForEmail.lastname}`;
+      subject = subject.replace(/{name}/g, userName);
+      message = message.replace(/{name}/g, userName);
+
+      // If user has orders, use the first order for placeholder data
+      if (userOrdersForEmail.length > 0) {
+        const firstOrder = userOrdersForEmail[0];
+        subject = subject.replace(/{order_no}/g, firstOrder.order_no || "");
+        message = message
+          .replace(/{order_no}/g, firstOrder.order_no || "")
+          .replace(/{zone}/g, firstOrder.zone_picked || "")
+          .replace(
+            /{weight}/g,
+            String(firstOrder.shipment_weight || firstOrder.weight || ""),
+          )
+          .replace(
+            /{delivery_speed}/g,
+            getCarrierName(firstOrder.delivery_speed) || "",
+          )
+          .replace(/{amount}/g, String(firstOrder.amount_paid || ""));
+      }
+    }
+
+    setEmailForm((prev) => ({
+      ...prev,
+      subject,
+      message,
+    }));
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailForm.to_email || !emailForm.subject || !emailForm.message) {
+      alert("Please fill in all email fields");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to send this email to ${emailForm.to_email}?`,
+      )
+    ) {
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/admin/send-custom-email", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          to_email: emailForm.to_email,
+          subject: emailForm.subject,
+          message: emailForm.message,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Email sent successfully!");
+        // Clear form
+        setEmailForm({
+          to_email: "",
+          subject: "",
+          message: "",
+          user_name: "",
+        });
+        setSelectedUserForEmail(null);
+        setUserOrdersForEmail([]);
+        setSelectedTemplate("");
+      } else {
+        alert(data.error || "Failed to send email");
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      alert("An error occurred while sending the email");
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // Auto-update user orders when orders state changes
+  useEffect(() => {
+    if (selectedUserForEmail && orders.length > 0) {
+      const userEmail = selectedUserForEmail.email.toLowerCase().trim();
+      const userOrders = orders.filter((order) => {
+        const orderEmail = (order.email || order.sender_email || "")
+          .toLowerCase()
+          .trim();
+        return orderEmail === userEmail;
+      });
+      console.log("Auto-updating user orders:", userOrders.length);
+      setUserOrdersForEmail(userOrders);
+    }
+  }, [orders, selectedUserForEmail]);
+
+  // Set default tab based on admin role
+  useEffect(() => {
+    if (admin && admin.role) {
+      // Set appropriate default tab based on role
+      if (admin.role === "admin") {
+        // Admin has access to everything, keep current tab
+        return;
+      } else if (admin.role === "account") {
+        // Account admins have access to orders and users
+        if (!hasAccessToTab(activeTab)) {
+          setActiveTab("orders"); // Default to orders for account admins
+        }
+      } else if (admin.role === "support") {
+        // Support admins have access to emails and users
+        if (!hasAccessToTab(activeTab)) {
+          setActiveTab("emails"); // Default to emails for support admins
+        }
+      }
+    }
+  }, [admin, activeTab]);
+
+  // Role-based access control helpers
+  const hasAccessToTab = (tabName: string) => {
+    if (!admin) return false;
+
+    const userRole = admin.role;
+
+    switch (tabName) {
+      case "orders":
+        return userRole === "admin" || userRole === "account";
+      case "zones":
+      case "pricing":
+        return userRole === "admin";
+      case "users":
+        return (
+          userRole === "admin" ||
+          userRole === "account" ||
+          userRole === "support"
+        );
+      case "emails":
+        return userRole === "admin" || userRole === "support";
+      case "admins":
+        return userRole === "admin";
+      default:
+        return false;
+    }
+  };
+
+  // Admin management functions
+  const fetchAdmins = useCallback(async () => {
+    // Check token availability instead of admin state for initial call
+    const token = localStorage.getItem("admin_auth_token");
+    if (!token) {
+      return;
+    }
+
+    // If admin state is available, check access; otherwise, assume access for super admin token
+    if (admin && !hasAccessToTab("admins")) {
+      return;
+    }
+
+    setAdminsLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/admin/admins", {
+        credentials: "include",
+        headers,
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          router.push("/admin/login");
+          return;
+        }
+        throw new Error("Failed to fetch admins");
+      }
+
+      const data = await response.json();
+      setAdminsList(data.admins || []);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+      setAdminsList([]);
+    } finally {
+      setAdminsLoading(false);
+    }
+  }, [router]); // Remove admin dependency since hasAccessToTab already uses current admin state
+
+  const handleCreateAdmin = async () => {
+    if (!adminForm.name || !adminForm.password || !adminForm.role) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    if (adminForm.password.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to create admin "${adminForm.name}" with role "${adminForm.role}"?`,
+      )
+    ) {
+      return;
+    }
+
+    setAdminActionLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("/api/admin/admins", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify(adminForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Admin created successfully!");
+        setAdminForm({ name: "", password: "", role: "support" });
+        setShowCreateAdminModal(false);
+        await fetchAdmins();
+      } else {
+        alert(data.detail || "Failed to create admin");
+      }
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      alert("An error occurred while creating admin");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const handleUpdateAdminRole = async (adminId: string, newRole: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to change this admin's role to "${newRole}"?`,
+      )
+    ) {
+      return;
+    }
+
+    setAdminActionLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/admin/admins/${adminId}/role`, {
+        method: "PATCH",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Admin role updated successfully!");
+        await fetchAdmins();
+      } else {
+        alert(data.detail || "Failed to update admin role");
+      }
+    } catch (error) {
+      console.error("Error updating admin role:", error);
+      alert("An error occurred while updating admin role");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: string, adminName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        `WARNING: This will permanently delete admin "${adminName}". Type "DELETE" to confirm.`,
+      )
+    ) {
+      return;
+    }
+
+    setAdminActionLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/admin/admins/${adminId}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Admin deleted successfully!");
+        await fetchAdmins();
+      } else {
+        alert(data.detail || "Failed to delete admin");
+      }
+    } catch (error) {
+      console.error("Error deleting admin:", error);
+      alert("An error occurred while deleting admin");
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     // Clear admin cookies
     document.cookie =
@@ -353,19 +1329,62 @@ export default function AdminDashboard() {
     }
   }, [router]);
 
+  // User management functions
+  const fetchUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const response = await fetch("/api/admin/users", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+
+      const data = await response.json();
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  // Initial auth check and data loading - runs only once on mount
   useEffect(() => {
-    // Check auth first, then fetch orders and zones if authenticated
     const isAuthenticated = checkAdminAuth();
     if (isAuthenticated) {
       // Add small delay to ensure cookies are fully loaded in production
       setTimeout(() => {
         fetchOrders();
-        if (activeTab === "zones") {
-          fetchZones();
-        }
+        fetchUsers(); // Always fetch users on page load for email functionality
       }, 300);
     }
-  }, [checkAdminAuth, fetchOrders, fetchZones, activeTab]);
+  }, []); // Empty dependency array - runs only once
+
+  // Handle active tab changes - fetch tab-specific data
+  useEffect(() => {
+    // Check if user is authenticated before fetching tab-specific data
+    const token = localStorage.getItem("admin_auth_token");
+    const adminCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("admin_user="));
+
+    if (!token && !adminCookie) return; // Not authenticated
+
+    if (activeTab === "zones") {
+      fetchZones();
+    } else if (activeTab === "admins") {
+      fetchAdmins();
+    }
+  }, [activeTab]); // Only depend on activeTab
 
   const handleAddZone = () => {
     setEditingZone(null);
@@ -516,6 +1535,240 @@ export default function AdminDashboard() {
     });
   };
 
+  // Pricing management functions
+  const downloadSampleExcel = () => {
+    // Create sample data for Excel
+    const sampleData = [
+      { zone: "UK_IRELAND", weight: 1, price: 85378.48 },
+      { zone: "UK_IRELAND", weight: 2, price: 102410.07 },
+      { zone: "USA_CANADA", weight: 1, price: 125000.0 },
+      { zone: "USA_CANADA", weight: 2, price: 150000.0 },
+      { zone: "EUROPE", weight: 1, price: 95000.0 },
+      { zone: "EUROPE", weight: 2, price: 115000.0 },
+    ];
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pricing Data");
+
+    // Generate Excel file
+    XLSX.writeFile(wb, `sample_pricing_${selectedCarrier.toLowerCase()}.xlsx`);
+  };
+
+  const downloadExistingPrices = async () => {
+    setPricingLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      const response = await fetch(`/api/rates?route=${selectedCarrier}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch existing prices");
+      }
+
+      const data = await response.json();
+
+      // Flatten the rates data
+      const excelData: any[] = [];
+      data.forEach((zoneData: any) => {
+        zoneData.rates.forEach((rate: any) => {
+          excelData.push({
+            zone: zoneData.zone,
+            weight: rate.weight,
+            price:
+              typeof rate.price === "string"
+                ? parseFloat(rate.price.replace(/,/g, ""))
+                : rate.price,
+          });
+        });
+      });
+
+      if (excelData.length === 0) {
+        alert("No existing pricing data found for this carrier");
+        return;
+      }
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Existing Pricing");
+
+      // Generate Excel file
+      XLSX.writeFile(
+        wb,
+        `existing_pricing_${selectedCarrier.toLowerCase()}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Error downloading existing prices:", error);
+      alert("Failed to download existing pricing data");
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setUploadStatus({
+        type: "error",
+        message: "Please select a valid Excel file (.xlsx or .xls)",
+      });
+      return;
+    }
+
+    setPricingLoading(true);
+    setUploadStatus({ type: null, message: "" });
+
+    try {
+      // Read Excel file
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      // Convert to JSON
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate data structure
+      if (!Array.isArray(jsonData) || jsonData.length === 0) {
+        throw new Error("Excel file is empty or has invalid format");
+      }
+
+      // Check required columns
+      const firstRow = jsonData[0] as any;
+      if (!firstRow.zone || !firstRow.weight || !firstRow.price) {
+        throw new Error("Excel must contain columns: zone, weight, price");
+      }
+
+      // Convert to CSV format
+      const csvData = jsonData.map((row: any) => ({
+        zone: String(row.zone || "").trim(),
+        weight: parseFloat(row.weight) || 0,
+        price: parseFloat(String(row.price).replace(/,/g, "")) || 0,
+      }));
+
+      // Validate data
+      const invalidRows = csvData.filter(
+        (row) => !row.zone || row.weight <= 0 || row.price <= 0,
+      );
+      if (invalidRows.length > 0) {
+        throw new Error(
+          `${invalidRows.length} rows have invalid data. Check zone, weight (>0), and price (>0)`,
+        );
+      }
+
+      // Convert to CSV string
+      const csvString = [
+        "zone,weight,price",
+        ...csvData.map((row) => `${row.zone},${row.weight},${row.price}`),
+      ].join("\n");
+
+      // Create CSV blob
+      const csvBlob = new Blob([csvString], { type: "text/csv" });
+
+      // Upload to backend
+      const token = localStorage.getItem("admin_auth_token");
+      const formData = new FormData();
+      formData.append("file", csvBlob, "pricing_data.csv");
+      formData.append("carrier", selectedCarrier);
+
+      const response = await fetch("/api/admin/upload-prices", {
+        method: "POST",
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to upload pricing data");
+      }
+
+      const result = await response.json();
+      setUploadStatus({
+        type: "success",
+        message: `Successfully processed ${result.zones_processed} zones with ${result.total_rates} rates. Inserted: ${result.inserted}, Updated: ${result.updated}`,
+      });
+
+      // Clear file input
+      event.target.value = "";
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      setUploadStatus({
+        type: "error",
+        message: error.message || "Failed to upload pricing data",
+      });
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleUserAction = async (
+    userId: string,
+    action: "suspend" | "unsuspend" | "delete",
+  ) => {
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem("admin_auth_token");
+      let url = `/api/admin/users/${userId}`;
+      let method = "PUT";
+
+      if (action === "delete") {
+        method = "DELETE";
+      } else if (action === "suspend" || action === "unsuspend") {
+        url += "/suspend";
+      }
+
+      const body =
+        action === "suspend" || action === "unsuspend"
+          ? JSON.stringify({ suspended: action === "suspend" })
+          : undefined;
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Failed to ${action} user`);
+      }
+
+      // Refresh users list
+      await fetchUsers();
+      alert(`User ${action}d successfully`);
+    } catch (error: any) {
+      console.error(`Error ${action}ing user:`, error);
+      alert(error.message || `Failed to ${action} user`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
@@ -660,60 +1913,167 @@ export default function AdminDashboard() {
           }}
         >
           <div style={{ display: "flex", gap: "1rem" }}>
-            <button
-              onClick={() => setActiveTab("orders")}
-              style={{
-                padding: "1rem 2rem",
-                fontSize: "16px",
-                fontWeight: "600",
-                color: activeTab === "orders" ? "#1B5E20" : "#6b7280",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom:
-                  activeTab === "orders"
-                    ? "3px solid #1B5E20"
-                    : "3px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Package size={20} />
-              Orders Management
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("zones");
-                fetchZones();
-              }}
-              style={{
-                padding: "1rem 2rem",
-                fontSize: "16px",
-                fontWeight: "600",
-                color: activeTab === "zones" ? "#1B5E20" : "#6b7280",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom:
-                  activeTab === "zones"
-                    ? "3px solid #1B5E20"
-                    : "3px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <DollarSign size={20} />
-              Zones & Prices
-            </button>
+            {hasAccessToTab("orders") && (
+              <button
+                onClick={() => setActiveTab("orders")}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "orders" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "orders"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Package size={20} />
+                Orders Management
+              </button>
+            )}
+            {hasAccessToTab("zones") && (
+              <button
+                onClick={() => {
+                  setActiveTab("zones");
+                  fetchZones();
+                }}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "zones" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "zones"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <DollarSign size={20} />
+                Zones & Prices
+              </button>
+            )}
+            {hasAccessToTab("users") && (
+              <button
+                onClick={() => setActiveTab("users")}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "users" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "users"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Inbox size={20} />
+                User Management
+              </button>
+            )}
+            {hasAccessToTab("pricing") && (
+              <button
+                onClick={() => setActiveTab("pricing")}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "pricing" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "pricing"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <BadgeDollarSign size={20} />
+                Bulk Pricing
+              </button>
+            )}
+            {hasAccessToTab("emails") && (
+              <button
+                onClick={() => setActiveTab("emails")}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "emails" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "emails"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Send size={20} />
+                Custom Emails
+              </button>
+            )}
+            {hasAccessToTab("admins") && (
+              <button
+                onClick={() => {
+                  setActiveTab("admins");
+                  fetchAdmins();
+                }}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: activeTab === "admins" ? "#1B5E20" : "#6b7280",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  borderBottom:
+                    activeTab === "admins"
+                      ? "3px solid #1B5E20"
+                      : "3px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <Shield size={20} />
+                Admin Management
+              </button>
+            )}
           </div>
         </div>
 
         {/* Orders Tab Content */}
-        {activeTab === "orders" && (
+        {activeTab === "orders" && hasAccessToTab("orders") && (
           <>
             {/* Stats Cards */}
             <div
@@ -1073,6 +2433,117 @@ export default function AdminDashboard() {
                   </span>
                   <span>Refresh</span>
                 </button>
+
+                {/* Delete All Orders Button */}
+                <button
+                  onClick={handleDeleteAllOrders}
+                  disabled={actionLoading || orders.length === 0}
+                  style={{
+                    padding: "10px 20px",
+                    background:
+                      actionLoading || orders.length === 0
+                        ? "#9ca3af"
+                        : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor:
+                      actionLoading || orders.length === 0
+                        ? "not-allowed"
+                        : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    opacity: actionLoading || orders.length === 0 ? 0.6 : 1,
+                  }}
+                  title={
+                    orders.length === 0
+                      ? "No orders to delete"
+                      : `Delete all ${orders.length} orders permanently`
+                  }
+                >
+                  <span
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
+                    <Trash2 size={20} />
+                  </span>
+                  <span>Delete All</span>
+                </button>
+
+                {/* Download CSV Button */}
+                <button
+                  onClick={downloadOrdersCSV}
+                  disabled={orders.length === 0}
+                  style={{
+                    padding: "10px 20px",
+                    background:
+                      orders.length === 0
+                        ? "#9ca3af"
+                        : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: orders.length === 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    opacity: orders.length === 0 ? 0.6 : 1,
+                  }}
+                  title={
+                    orders.length === 0
+                      ? "No orders to download"
+                      : `Download ${orders.length} orders as CSV`
+                  }
+                >
+                  <span
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
+                    <Download size={20} />
+                  </span>
+                  <span>CSV</span>
+                </button>
+
+                {/* Download Excel Button */}
+                <button
+                  onClick={downloadOrdersExcel}
+                  disabled={orders.length === 0}
+                  style={{
+                    padding: "10px 20px",
+                    background:
+                      orders.length === 0
+                        ? "#9ca3af"
+                        : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: orders.length === 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    opacity: orders.length === 0 ? 0.6 : 1,
+                  }}
+                  title={
+                    orders.length === 0
+                      ? "No orders to download"
+                      : `Download ${orders.length} orders as Excel`
+                  }
+                >
+                  <span
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
+                    <FileSpreadsheet size={20} />
+                  </span>
+                  <span>Excel</span>
+                </button>
               </div>
             </div>
 
@@ -1384,7 +2855,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Zones Tab Content */}
-        {activeTab === "zones" && (
+        {activeTab === "zones" && hasAccessToTab("zones") && (
           <>
             {/* Header with Add Button */}
             <div
@@ -2013,6 +3484,1683 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Users Tab Content */}
+      {activeTab === "users" && hasAccessToTab("users") && (
+        <div style={{ backgroundColor: "white", borderRadius: "12px" }}>
+          <div style={{ padding: "2rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1.5rem",
+                flexWrap: "wrap",
+                gap: "1rem",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "bold",
+                  color: "#1f2937",
+                  margin: 0,
+                }}
+              >
+                User Management
+              </h2>
+              <div
+                style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}
+              >
+                <button
+                  onClick={fetchUsers}
+                  disabled={usersLoading}
+                  style={{
+                    padding: "0.75rem 1.5rem",
+                    backgroundColor: usersLoading ? "#9ca3af" : "#1B5E20",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: usersLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <RefreshCw
+                    size={16}
+                    className={usersLoading ? "animate-spin" : ""}
+                  />
+                  {usersLoading ? "Loading..." : "Refresh"}
+                </button>
+
+                <button
+                  onClick={downloadUsersCSV}
+                  disabled={users.length === 0}
+                  style={{
+                    padding: "0.75rem 1.5rem",
+                    background:
+                      users.length === 0
+                        ? "#9ca3af"
+                        : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: users.length === 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    opacity: users.length === 0 ? 0.6 : 1,
+                  }}
+                  title={
+                    users.length === 0
+                      ? "No users to download"
+                      : `Download ${users.length} users as CSV`
+                  }
+                >
+                  <Download size={16} />
+                  CSV
+                </button>
+
+                <button
+                  onClick={downloadUsersExcel}
+                  disabled={users.length === 0}
+                  style={{
+                    padding: "0.75rem 1.5rem",
+                    background:
+                      users.length === 0
+                        ? "#9ca3af"
+                        : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: users.length === 0 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    opacity: users.length === 0 ? 0.6 : 1,
+                  }}
+                  title={
+                    users.length === 0
+                      ? "No users to download"
+                      : `Download ${users.length} users as Excel`
+                  }
+                >
+                  <FileSpreadsheet size={16} />
+                  Excel
+                </button>
+              </div>
+            </div>
+
+            {users.length === 0 && !usersLoading && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "3rem",
+                  color: "#6b7280",
+                }}
+              >
+                <Inbox size={48} />
+                <p style={{ fontSize: "18px", marginTop: "1rem" }}>
+                  No users registered yet.
+                </p>
+              </div>
+            )}
+
+            {users.length > 0 && (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f9fafb" }}>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        User ID
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Email
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Name
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Type
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Status
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Created
+                      </th>
+                      <th
+                        style={{
+                          padding: "1rem",
+                          textAlign: "left",
+                          fontWeight: "600",
+                          color: "#374151",
+                          borderBottom: "1px solid #e5e7eb",
+                        }}
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user: any) => (
+                      <tr
+                        key={user.id}
+                        style={{ borderBottom: "1px solid #e5e7eb" }}
+                      >
+                        <td
+                          style={{
+                            padding: "1rem",
+                            fontWeight: "600",
+                            color: "#1f2937",
+                          }}
+                        >
+                          {user.id}
+                        </td>
+                        <td style={{ padding: "1rem", color: "#374151" }}>
+                          {user.email}
+                        </td>
+                        <td style={{ padding: "1rem", color: "#374151" }}>
+                          {user.firstname && user.lastname
+                            ? `${user.firstname} ${user.lastname}`
+                            : user.firstname || user.lastname || "N/A"}
+                        </td>
+                        <td style={{ padding: "1rem", color: "#374151" }}>
+                          <span
+                            style={{
+                              padding: "0.25rem 0.75rem",
+                              borderRadius: "9999px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              backgroundColor:
+                                user.user_type === "Business"
+                                  ? "#dbeafe"
+                                  : "#f3e8ff",
+                              color:
+                                user.user_type === "Business"
+                                  ? "#1e40af"
+                                  : "#6b21a8",
+                            }}
+                          >
+                            {user.user_type || "Individual"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "1rem" }}>
+                          <span
+                            style={{
+                              padding: "0.25rem 0.75rem",
+                              borderRadius: "9999px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              backgroundColor: user.is_suspended
+                                ? "#fef3c7"
+                                : "#d1fae5",
+                              color: user.is_suspended ? "#92400e" : "#065f46",
+                            }}
+                          >
+                            {user.is_suspended ? "Suspended" : "Active"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "1rem", color: "#6b7280" }}>
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: "1rem" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "0.5rem",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <button
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowUserModal(true);
+                              }}
+                              disabled={actionLoading}
+                              style={{
+                                padding: "0.5rem 1rem",
+                                backgroundColor: actionLoading
+                                  ? "#9ca3af"
+                                  : "#3b82f6",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                cursor: actionLoading
+                                  ? "not-allowed"
+                                  : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.25rem",
+                              }}
+                            >
+                              <Eye size={14} />
+                              View Details
+                            </button>
+                            {user.is_suspended ? (
+                              <button
+                                onClick={() =>
+                                  handleUserAction(user.id, "unsuspend")
+                                }
+                                disabled={actionLoading}
+                                style={{
+                                  padding: "0.5rem 1rem",
+                                  backgroundColor: actionLoading
+                                    ? "#9ca3af"
+                                    : "#10b981",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  cursor: actionLoading
+                                    ? "not-allowed"
+                                    : "pointer",
+                                }}
+                              >
+                                Unsuspend
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  handleUserAction(user.id, "suspend")
+                                }
+                                disabled={actionLoading}
+                                style={{
+                                  padding: "0.5rem 1rem",
+                                  backgroundColor: actionLoading
+                                    ? "#9ca3af"
+                                    : "#f59e0b",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  cursor: actionLoading
+                                    ? "not-allowed"
+                                    : "pointer",
+                                }}
+                              >
+                                Suspend
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                handleUserAction(user.id, "delete")
+                              }
+                              disabled={actionLoading}
+                              style={{
+                                padding: "0.5rem 1rem",
+                                backgroundColor: actionLoading
+                                  ? "#9ca3af"
+                                  : "#dc2626",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                cursor: actionLoading
+                                  ? "not-allowed"
+                                  : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.25rem",
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pricing Tab Content */}
+      {activeTab === "pricing" && hasAccessToTab("pricing") && (
+        <div style={{ backgroundColor: "white", borderRadius: "12px" }}>
+          <div style={{ padding: "2rem" }}>
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "#1f2937",
+                marginBottom: "1.5rem",
+              }}
+            >
+              Bulk Pricing Management
+            </h2>
+            <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
+              Upload and manage carrier pricing data in bulk using Excel files.
+            </p>
+
+            {/* Carrier Selection */}
+            <div style={{ marginBottom: "2rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Select Carrier
+              </label>
+              <select
+                value={selectedCarrier}
+                onChange={(e) =>
+                  setSelectedCarrier(e.target.value as "DHL" | "FEDEX" | "UPS")
+                }
+                style={{
+                  padding: "0.75rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  outline: "none",
+                  minWidth: "200px",
+                }}
+              >
+                <option value="DHL">DHL</option>
+                <option value="FEDEX">FedEx</option>
+                <option value="UPS">UPS</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                marginBottom: "2rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                onClick={downloadSampleExcel}
+                disabled={pricingLoading}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  backgroundColor: "#1B5E20",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: pricingLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+                onMouseOver={(e) =>
+                  !pricingLoading &&
+                  (e.currentTarget.style.backgroundColor = "#2E7D32")
+                }
+                onMouseOut={(e) =>
+                  !pricingLoading &&
+                  (e.currentTarget.style.backgroundColor = "#1B5E20")
+                }
+              >
+                <Save size={16} />
+                Download Sample Excel
+              </button>
+
+              <button
+                onClick={downloadExistingPrices}
+                disabled={pricingLoading}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: pricingLoading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+                onMouseOver={(e) =>
+                  !pricingLoading &&
+                  (e.currentTarget.style.backgroundColor = "#1d4ed8")
+                }
+                onMouseOut={(e) =>
+                  !pricingLoading &&
+                  (e.currentTarget.style.backgroundColor = "#2563eb")
+                }
+              >
+                <Edit size={16} />
+                Download Existing Prices
+              </button>
+            </div>
+
+            {/* Upload Section */}
+            <div
+              style={{
+                border: "2px dashed #d1d5db",
+                borderRadius: "8px",
+                padding: "2rem",
+                textAlign: "center",
+                backgroundColor: "#f9fafb",
+              }}
+            >
+              <BadgeDollarSign
+                size={48}
+                style={{ color: "#6b7280", marginBottom: "1rem" }}
+              />
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "600",
+                  color: "#1f2937",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Upload Modified Excel File
+              </h3>
+              <p style={{ color: "#6b7280", marginBottom: "1.5rem" }}>
+                Select an Excel file (.xlsx or .xls) with your pricing updates
+              </p>
+
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                disabled={pricingLoading}
+                style={{
+                  display: "block",
+                  margin: "0 auto 1rem",
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "4px",
+                }}
+              />
+
+              {pricingLoading && (
+                <div style={{ color: "#6b7280", marginBottom: "1rem" }}>
+                  <RefreshCw
+                    size={16}
+                    style={{ display: "inline", marginRight: "0.5rem" }}
+                    className="animate-spin"
+                  />
+                  Processing file...
+                </div>
+              )}
+
+              {uploadStatus.type && (
+                <div
+                  style={{
+                    padding: "1rem",
+                    borderRadius: "8px",
+                    backgroundColor:
+                      uploadStatus.type === "success" ? "#d1fae5" : "#fee2e2",
+                    color:
+                      uploadStatus.type === "success" ? "#065f46" : "#991b1b",
+                    border: `1px solid ${uploadStatus.type === "success" ? "#a7f3d0" : "#fecaca"}`,
+                  }}
+                >
+                  {uploadStatus.message}
+                </div>
+              )}
+            </div>
+
+            {/* Instructions */}
+            <div
+              style={{
+                marginTop: "2rem",
+                padding: "1.5rem",
+                backgroundColor: "#eff6ff",
+                borderRadius: "8px",
+                border: "1px solid #bfdbfe",
+              }}
+            >
+              <h4
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: "#1e40af",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Instructions
+              </h4>
+              <ul
+                style={{
+                  color: "#3730a3",
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                  margin: 0,
+                  paddingLeft: "1.5rem",
+                }}
+              >
+                <li>Select a Carrier (DHL by default)</li>
+                <li>
+                  Download the sample Excel file to see the required format
+                </li>
+                <li>
+                  The file must contain columns: <strong>zone</strong>,{" "}
+                  <strong>weight</strong>, <strong>price</strong>
+                </li>
+                <li>
+                  Weight must be greater than 0, price must be greater than 0
+                </li>
+                <li>
+                  Zone names must match the carrier&apos;s zone naming convention
+                </li>
+                <li>Upload your modified Excel file to update pricing data</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Emails Tab Content */}
+      {activeTab === "emails" && hasAccessToTab("emails") && (
+        <div
+          className="email-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: "1.5rem",
+          }}
+        >
+          {/* Email Composer */}
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "2rem",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "#1f2937",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <Send size={24} />
+              Send Custom Email
+            </h2>
+
+            {/* User Selection */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Select User
+              </label>
+              <select
+                onChange={(e) => handleUserSelect(e.target.value)}
+                value={selectedUserForEmail?.id || ""}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  outline: "none",
+                }}
+              >
+                <option value="">-- Select a user --</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.firstname} {user.lastname} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Email Address (auto-filled, read-only) */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                To Email
+              </label>
+              <input
+                type="email"
+                value={emailForm.to_email}
+                readOnly
+                placeholder="Select a user to auto-fill email..."
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  outline: "none",
+                  backgroundColor: "#f9fafb",
+                  color: "#6b7280",
+                }}
+              />
+            </div>
+
+            {/* Email Templates */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Quick Templates
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                }}
+              >
+                {emailTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleTemplateSelect(template.id)}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor:
+                        selectedTemplate === template.id
+                          ? "#1B5E20"
+                          : "#f3f4f6",
+                      color:
+                        selectedTemplate === template.id ? "white" : "#374151",
+                      border:
+                        selectedTemplate === template.id
+                          ? "2px solid #1B5E20"
+                          : "2px solid #d1d5db",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: "500",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseOver={(e) => {
+                      if (selectedTemplate !== template.id) {
+                        e.currentTarget.style.backgroundColor = "#e5e7eb";
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (selectedTemplate !== template.id) {
+                        e.currentTarget.style.backgroundColor = "#f3f4f6";
+                      }
+                    }}
+                  >
+                    {template.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Subject */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Subject
+              </label>
+              <input
+                type="text"
+                value={emailForm.subject}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    subject: e.target.value,
+                  }))
+                }
+                placeholder="Enter email subject..."
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* Message */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Message
+              </label>
+              <textarea
+                ref={messageTextareaRef}
+                value={emailForm.message}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    message: e.target.value,
+                  }))
+                }
+                placeholder="Enter your message here... (Click 'Insert' on any order to add its details)"
+                rows={12}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  outline: "none",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            {/* Send Button */}
+            <button
+              onClick={handleSendEmail}
+              disabled={
+                emailSending ||
+                !emailForm.to_email ||
+                !emailForm.subject ||
+                !emailForm.message
+              }
+              style={{
+                width: "100%",
+                padding: "1rem 2rem",
+                background:
+                  emailSending ||
+                  !emailForm.to_email ||
+                  !emailForm.subject ||
+                  !emailForm.message
+                    ? "#9ca3af"
+                    : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "16px",
+                fontWeight: "600",
+                cursor:
+                  emailSending ||
+                  !emailForm.to_email ||
+                  !emailForm.subject ||
+                  !emailForm.message
+                    ? "not-allowed"
+                    : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                transition: "all 0.2s",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+              }}
+              onMouseOver={(e) => {
+                if (
+                  !emailSending &&
+                  emailForm.to_email &&
+                  emailForm.subject &&
+                  emailForm.message
+                ) {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 16px rgba(16, 185, 129, 0.4)";
+                }
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(16, 185, 129, 0.3)";
+              }}
+            >
+              {emailSending ? (
+                <>
+                  <RefreshCw
+                    size={20}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send size={20} />
+                  Send Email
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* User Orders Sidebar */}
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "2rem",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              maxHeight: "800px",
+              overflowY: "auto",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "#1f2937",
+                marginBottom: "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <Package size={20} />
+              User Orders
+            </h3>
+
+            {!selectedUserForEmail ? (
+              <p style={{ color: "#6b7280", fontSize: "14px" }}>
+                Select a user to view their orders
+              </p>
+            ) : userOrdersForEmail.length === 0 ? (
+              <p style={{ color: "#6b7280", fontSize: "14px" }}>
+                No orders found for this user
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                }}
+              >
+                {userOrdersForEmail.map((order) => (
+                  <div
+                    key={order._id}
+                    style={{
+                      padding: "1rem",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: "600",
+                        color: "#1f2937",
+                        marginBottom: "0.5rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>#{order.order_no}</span>
+                      <span
+                        style={{
+                          padding: "0.25rem 0.5rem",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          backgroundColor:
+                            order.status === "pending"
+                              ? "#fef3c7"
+                              : order.status === "approved"
+                                ? "#d1fae5"
+                                : order.status === "shipped"
+                                  ? "#dbeafe"
+                                  : order.status === "delivered"
+                                    ? "#dcfce7"
+                                    : "#fee2e2",
+                          color:
+                            order.status === "pending"
+                              ? "#92400e"
+                              : order.status === "approved"
+                                ? "#065f46"
+                                : order.status === "shipped"
+                                  ? "#1e40af"
+                                  : order.status === "delivered"
+                                    ? "#166534"
+                                    : "#991b1b",
+                        }}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        color: "#6b7280",
+                        lineHeight: "1.6",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      <div>
+                        <strong>Zone:</strong> {order.zone_picked}
+                      </div>
+                      <div>
+                        <strong>Weight:</strong>{" "}
+                        {order.shipment_weight || order.weight} kg
+                      </div>
+                      <div>
+                        <strong>Speed:</strong>{" "}
+                        {getCarrierName(order.delivery_speed)}
+                      </div>
+                      <div>
+                        <strong>Amount:</strong> ₦
+                        {order.amount_paid?.toLocaleString()}
+                      </div>
+                      <div>
+                        <strong>Date:</strong>{" "}
+                        {new Date(order.date_created).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleInsertOrderDetails(order)}
+                      style={{
+                        width: "100%",
+                        padding: "0.5rem",
+                        background:
+                          "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.boxShadow =
+                          "0 2px 8px rgba(16, 185, 129, 0.4)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
+                      <Plus size={14} />
+                      Insert Order Details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Admin Management Tab Content */}
+      {activeTab === "admins" && hasAccessToTab("admins") && (
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "2rem",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+                color: "#1f2937",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                margin: 0,
+              }}
+            >
+              <Shield size={24} />
+              Admin Management
+            </h2>
+            <button
+              onClick={() => setShowCreateAdminModal(true)}
+              style={{
+                padding: "0.75rem 1.5rem",
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                transition: "all 0.2s",
+                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow =
+                  "0 6px 16px rgba(16, 185, 129, 0.4)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(16, 185, 129, 0.3)";
+              }}
+            >
+              <UserPlus size={16} />
+              Create Admin
+            </button>
+          </div>
+
+          {adminsLoading ? (
+            <div style={{ textAlign: "center", padding: "2rem" }}>
+              <RefreshCw
+                size={32}
+                style={{ animation: "spin 1s linear infinite" }}
+              />
+              <p style={{ marginTop: "1rem", color: "#6b7280" }}>
+                Loading admins...
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: "600px",
+                }}
+              >
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "1rem",
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Name
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "1rem",
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Role
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "1rem",
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Created
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: "1rem",
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminsList.map((adminUser) => (
+                    <tr
+                      key={adminUser._id}
+                      style={{
+                        borderBottom: "1px solid #e5e7eb",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f9fafb";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <td style={{ padding: "1rem", fontSize: "14px" }}>
+                        <div style={{ fontWeight: "600", color: "#1f2937" }}>
+                          {adminUser.name}
+                        </div>
+                        {adminUser._id === admin?._id && (
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "#10b981",
+                              fontWeight: "500",
+                            }}
+                          >
+                            (You)
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "1rem", fontSize: "14px" }}>
+                        <span
+                          style={{
+                            padding: "0.25rem 0.75rem",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            backgroundColor:
+                              adminUser.role === "admin"
+                                ? "#fee2e2"
+                                : adminUser.role === "account"
+                                  ? "#fef3c7"
+                                  : "#e0f2fe",
+                            color:
+                              adminUser.role === "admin"
+                                ? "#991b1b"
+                                : adminUser.role === "account"
+                                  ? "#92400e"
+                                  : "#0c4a6e",
+                          }}
+                        >
+                          {adminUser.role}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          padding: "1rem",
+                          fontSize: "14px",
+                          color: "#6b7280",
+                        }}
+                      >
+                        {new Date(adminUser.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: "1rem" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "0.5rem",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {/* Role Change Dropdown */}
+                          <select
+                            value={adminUser.role}
+                            onChange={(e) =>
+                              handleUpdateAdminRole(
+                                adminUser._id,
+                                e.target.value,
+                              )
+                            }
+                            disabled={
+                              adminUser._id === admin?._id || adminActionLoading
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              cursor:
+                                adminUser._id === admin?._id
+                                  ? "not-allowed"
+                                  : "pointer",
+                              opacity: adminUser._id === admin?._id ? 0.5 : 1,
+                            }}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="account">Account</option>
+                            <option value="support">Support</option>
+                          </select>
+
+                          {/* Delete Button */}
+                          <button
+                            onClick={() =>
+                              handleDeleteAdmin(adminUser._id, adminUser.name)
+                            }
+                            disabled={
+                              adminUser._id === admin?._id || adminActionLoading
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              backgroundColor:
+                                adminUser._id === admin?._id
+                                  ? "#f3f4f6"
+                                  : adminActionLoading
+                                    ? "#9ca3af"
+                                    : "#ef4444",
+                              color:
+                                adminUser._id === admin?._id
+                                  ? "#9ca3af"
+                                  : "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor:
+                                adminUser._id === admin?._id ||
+                                adminActionLoading
+                                  ? "not-allowed"
+                                  : "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              fontSize: "12px",
+                            }}
+                            title={
+                              adminUser._id === admin?._id
+                                ? "Cannot delete your own account"
+                                : "Delete admin"
+                            }
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {adminsList.length === 0 && (
+                <div style={{ textAlign: "center", padding: "2rem" }}>
+                  <p style={{ color: "#6b7280" }}>No admin accounts found</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Admin Modal */}
+      {showCreateAdminModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "1rem",
+          }}
+          onClick={() => setShowCreateAdminModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+              maxWidth: "28rem",
+              width: "100%",
+              padding: "0",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "2rem 2rem 0 2rem",
+                borderBottom: "1px solid #e5e7eb",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: "24px",
+                    fontWeight: "bold",
+                    color: "#1f2937",
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <UserPlus size={24} />
+                  Create New Admin
+                </h3>
+                <button
+                  onClick={() => setShowCreateAdminModal(false)}
+                  style={{
+                    padding: "0.5rem",
+                    backgroundColor: "#f3f4f6",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: "0 2rem 2rem 2rem" }}>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Admin Name
+                </label>
+                <input
+                  type="text"
+                  value={adminForm.name}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Enter admin name..."
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={adminForm.password}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter password (min 6 characters)..."
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "2rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Role
+                </label>
+                <select
+                  value={adminForm.role}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({
+                      ...prev,
+                      role: e.target.value as "admin" | "account" | "support",
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="support">
+                    Support (Custom Emails + User Management)
+                  </option>
+                  <option value="account">
+                    Account (Orders + User Management)
+                  </option>
+                  <option value="admin">Admin (Full Access)</option>
+                </select>
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <button
+                  onClick={handleCreateAdmin}
+                  disabled={adminActionLoading}
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem 1.5rem",
+                    background: adminActionLoading
+                      ? "#9ca3af"
+                      : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: adminActionLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  {adminActionLoading ? (
+                    <>
+                      <RefreshCw
+                        size={16}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} />
+                      Create Admin
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowCreateAdminModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem 1.5rem",
+                    backgroundColor: "#f3f4f6",
+                    color: "#374151",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Access Denied Message for unauthorized tabs */}
+      {((activeTab === "orders" && !hasAccessToTab("orders")) ||
+        (activeTab === "zones" && !hasAccessToTab("zones")) ||
+        (activeTab === "users" && !hasAccessToTab("users")) ||
+        (activeTab === "pricing" && !hasAccessToTab("pricing")) ||
+        (activeTab === "emails" && !hasAccessToTab("emails")) ||
+        (activeTab === "admins" && !hasAccessToTab("admins"))) && (
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "3rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            textAlign: "center",
+          }}
+        >
+          <XCircle
+            size={48}
+            style={{ color: "#ef4444", marginBottom: "1rem" }}
+          />
+          <h2
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              color: "#1f2937",
+              marginBottom: "1rem",
+            }}
+          >
+            Access Denied
+          </h2>
+          <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
+            You don&apos;t have permission to access this section. Your role (
+            {admin?.role}) doesn&apos;t include access to the {activeTab} management.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+              fontSize: "14px",
+              color: "#6b7280",
+            }}
+          >
+            <p>
+              <strong>Account Role:</strong> Orders + User Management
+            </p>
+            <p>
+              <strong>Support Role:</strong> Custom Emails + User Management
+            </p>
+            <p>
+              <strong>Admin Role:</strong> Full Access to All Features
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Order Details Modal */}
       {showModal && selectedOrder && (
         <div
@@ -2064,7 +5212,7 @@ export default function AdminDashboard() {
                   <h2
                     style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}
                   >
-                    Order Details
+                    {isEditingOrder ? "Edit Order Details" : "Order Details"}
                   </h2>
                   <p
                     style={{
@@ -2077,20 +5225,96 @@ export default function AdminDashboard() {
                     Order #{selectedOrder.order_no}
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowModal(false)}
-                  style={{
-                    color: "white",
-                    fontSize: "36px",
-                    fontWeight: "bold",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    lineHeight: "1",
-                  }}
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "1rem" }}
                 >
-                  ×
-                </button>
+                  {isEditingOrder ? (
+                    <>
+                      <button
+                        onClick={handleUpdateOrder}
+                        disabled={actionLoading}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          padding: "0.5rem 1rem",
+                          backgroundColor: actionLoading
+                            ? "#9ca3af"
+                            : "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        <Save size={18} />
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={actionLoading}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          padding: "0.5rem 1rem",
+                          backgroundColor: actionLoading
+                            ? "#9ca3af"
+                            : "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        <X size={18} />
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleEditOrder}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        padding: "0.5rem 1rem",
+                        backgroundColor: "#3b82f6",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Edit size={18} />
+                      Edit Order
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowModal(false);
+                      setIsEditingOrder(false);
+                      setEditedOrder(null);
+                    }}
+                    style={{
+                      color: "white",
+                      fontSize: "36px",
+                      fontWeight: "bold",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      lineHeight: "1",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2187,46 +5411,224 @@ export default function AdminDashboard() {
                   </h3>
                   <div style={{ fontSize: "14px" }}>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Name:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.sender_name || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="text"
+                          value={editedOrder.sender_name || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              sender_name: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #3b82f6",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.sender_name || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Email:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.sender_email || selectedOrder.email}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="email"
+                          value={editedOrder.sender_email || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              sender_email: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #3b82f6",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.sender_email || selectedOrder.email}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Phone:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.sender_phone || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="tel"
+                          value={editedOrder.sender_phone || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              sender_phone: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #3b82f6",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.sender_phone || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Address:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.sender_address || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="text"
+                          value={editedOrder.sender_address || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              sender_address: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #3b82f6",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.sender_address || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Location:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.sender_city},{" "}
-                        {selectedOrder.sender_state},{" "}
-                        {selectedOrder.sender_country}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="City"
+                            value={editedOrder.sender_city || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                sender_city: e.target.value,
+                              })
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              border: "2px solid #3b82f6",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="State"
+                            value={editedOrder.sender_state || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                sender_state: e.target.value,
+                              })
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              border: "2px solid #3b82f6",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Country"
+                            value={editedOrder.sender_country || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                sender_country: e.target.value,
+                              })
+                            }
+                            style={{
+                              gridColumn: "1 / -1",
+                              padding: "0.5rem",
+                              border: "2px solid #3b82f6",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.sender_city},{" "}
+                          {selectedOrder.sender_state},{" "}
+                          {selectedOrder.sender_country}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2260,46 +5662,224 @@ export default function AdminDashboard() {
                   </h3>
                   <div style={{ fontSize: "14px" }}>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Name:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.receiver_name || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="text"
+                          value={editedOrder.receiver_name || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              receiver_name: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #22c55e",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.receiver_name || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Phone:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.receiver_phone || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="tel"
+                          value={editedOrder.receiver_phone || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              receiver_phone: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #22c55e",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.receiver_phone || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Address:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.receiver_address || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="text"
+                          value={editedOrder.receiver_address || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              receiver_address: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #22c55e",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.receiver_address || "N/A"}
+                        </p>
+                      )}
                     </div>
                     <div style={{ marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Location:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.receiver_city},{" "}
-                        {selectedOrder.receiver_state},{" "}
-                        {selectedOrder.receiver_country}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="City"
+                            value={editedOrder.receiver_city || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                receiver_city: e.target.value,
+                              })
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              border: "2px solid #22c55e",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="State"
+                            value={editedOrder.receiver_state || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                receiver_state: e.target.value,
+                              })
+                            }
+                            style={{
+                              padding: "0.5rem",
+                              border: "2px solid #22c55e",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Country"
+                            value={editedOrder.receiver_country || ""}
+                            onChange={(e) =>
+                              setEditedOrder({
+                                ...editedOrder,
+                                receiver_country: e.target.value,
+                              })
+                            }
+                            style={{
+                              gridColumn: "1 / -1",
+                              padding: "0.5rem",
+                              border: "2px solid #22c55e",
+                              borderRadius: "6px",
+                              fontSize: "14px",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.receiver_city},{" "}
+                          {selectedOrder.receiver_state},{" "}
+                          {selectedOrder.receiver_country}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <span style={{ fontWeight: "600", color: "#374151" }}>
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: "#374151",
+                          display: "block",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
                         Postal Code:
                       </span>
-                      <p style={{ color: "#1f2937", margin: 0 }}>
-                        {selectedOrder.receiver_post_code || "N/A"}
-                      </p>
+                      {isEditingOrder && editedOrder ? (
+                        <input
+                          type="text"
+                          value={editedOrder.receiver_post_code || ""}
+                          onChange={(e) =>
+                            setEditedOrder({
+                              ...editedOrder,
+                              receiver_post_code: e.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            border: "2px solid #22c55e",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                          }}
+                        />
+                      ) : (
+                        <p style={{ color: "#1f2937", margin: 0 }}>
+                          {selectedOrder.receiver_post_code || "N/A"}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2342,64 +5922,237 @@ export default function AdminDashboard() {
                   }}
                 >
                   <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
                       Description:
                     </span>
-                    <p style={{ color: "#1f2937", margin: 0 }}>
-                      {selectedOrder.shipment_description || "N/A"}
-                    </p>
+                    {isEditingOrder && editedOrder ? (
+                      <input
+                        type="text"
+                        value={editedOrder.shipment_description || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            shipment_description: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    ) : (
+                      <p style={{ color: "#1f2937", margin: 0 }}>
+                        {selectedOrder.shipment_description || "N/A"}
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
                       Quantity:
                     </span>
-                    <p style={{ color: "#1f2937", margin: 0 }}>
-                      {selectedOrder.shipment_quantity || "N/A"} items
-                    </p>
+                    {isEditingOrder && editedOrder ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={editedOrder.shipment_quantity || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            shipment_quantity: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    ) : (
+                      <p style={{ color: "#1f2937", margin: 0 }}>
+                        {selectedOrder.shipment_quantity || "N/A"} items
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
                       Weight:
                     </span>
-                    <p
-                      style={{
-                        color: "#1f2937",
-                        fontWeight: "bold",
-                        margin: 0,
-                      }}
-                    >
-                      {selectedOrder.shipment_weight || selectedOrder.weight} kg
-                    </p>
+                    {isEditingOrder && editedOrder ? (
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={editedOrder.weight || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            weight: parseFloat(e.target.value) || 0,
+                            shipment_weight: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    ) : (
+                      <p
+                        style={{
+                          color: "#1f2937",
+                          fontWeight: "bold",
+                          margin: 0,
+                        }}
+                      >
+                        {selectedOrder.shipment_weight || selectedOrder.weight}{" "}
+                        kg
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
                       Value:
                     </span>
-                    <p style={{ color: "#1f2937", margin: 0 }}>
-                      ₦{selectedOrder.shipment_value?.toLocaleString() || "N/A"}
-                    </p>
+                    {isEditingOrder && editedOrder ? (
+                      <input
+                        type="number"
+                        min="0"
+                        value={editedOrder.shipment_value || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            shipment_value: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    ) : (
+                      <p style={{ color: "#1f2937", margin: 0 }}>
+                        ₦
+                        {selectedOrder.shipment_value?.toLocaleString() ||
+                          "N/A"}
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
-                      Zone:
-                    </span>
-                    <p style={{ color: "#1f2937", margin: 0 }}>
-                      {selectedOrder.zone_picked.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                  <div>
-                    <span style={{ fontWeight: "600", color: "#374151" }}>
-                      Delivery Speed:
-                    </span>
-                    <p
+                    <span
                       style={{
-                        color: "#1f2937",
-                        textTransform: "capitalize",
-                        margin: 0,
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
                       }}
                     >
-                      {selectedOrder.delivery_speed}
-                    </p>
+                      Zone:
+                    </span>
+                    {isEditingOrder && editedOrder ? (
+                      <input
+                        type="text"
+                        value={editedOrder.zone_picked || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            zone_picked: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      />
+                    ) : (
+                      <p style={{ color: "#1f2937", margin: 0 }}>
+                        {selectedOrder.zone_picked.replace(/_/g, " ")}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Delivery Speed:
+                    </span>
+                    {isEditingOrder && editedOrder ? (
+                      <select
+                        value={editedOrder.delivery_speed || ""}
+                        onChange={(e) =>
+                          setEditedOrder({
+                            ...editedOrder,
+                            delivery_speed: e.target.value,
+                          })
+                        }
+                        style={{
+                          width: "100%",
+                          padding: "0.5rem",
+                          border: "2px solid #eab308",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <option value="economy">UPS (Economy)</option>
+                        <option value="standard">FedEx (Standard)</option>
+                        <option value="express">DHL (Express)</option>
+                      </select>
+                    ) : (
+                      <p
+                        style={{
+                          color: "#1f2937",
+                          textTransform: "capitalize",
+                          margin: 0,
+                        }}
+                      >
+                        {getCarrierName(selectedOrder.delivery_speed)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2639,7 +6392,445 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* User Details Modal */}
+      {showUserModal && selectedUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "1rem",
+          }}
+          onClick={() => setShowUserModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+              maxWidth: "600px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                background: "linear-gradient(90deg, #1B5E20 0%, #2E7D32 100%)",
+                color: "white",
+                padding: "1.5rem",
+                borderTopLeftRadius: "16px",
+                borderTopRightRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>
+                User Details
+              </h2>
+              <button
+                onClick={() => setShowUserModal(false)}
+                style={{
+                  color: "white",
+                  fontSize: "36px",
+                  fontWeight: "bold",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  lineHeight: "1",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "1.5rem" }}>
+              {/* User Information Grid */}
+              <div style={{ display: "grid", gap: "1.5rem" }}>
+                {/* User ID */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#6b7280",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    User ID
+                  </label>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: "#1f2937",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {selectedUser.id}
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#6b7280",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Email
+                  </label>
+                  <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                    {selectedUser.email}
+                  </div>
+                </div>
+
+                {/* Name */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "1rem",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#6b7280",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      First Name
+                    </label>
+                    <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                      {selectedUser.firstname || "N/A"}
+                    </div>
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#6b7280",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Last Name
+                    </label>
+                    <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                      {selectedUser.lastname || "N/A"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* User Type */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#6b7280",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Account Type
+                  </label>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      backgroundColor:
+                        selectedUser.user_type === "Business"
+                          ? "#dbeafe"
+                          : "#f3e8ff",
+                      color:
+                        selectedUser.user_type === "Business"
+                          ? "#1e40af"
+                          : "#6b21a8",
+                    }}
+                  >
+                    {selectedUser.user_type || "Individual"}
+                  </span>
+                </div>
+
+                {/* Phone */}
+                {selectedUser.phone && (
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#6b7280",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Phone
+                    </label>
+                    <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                      {selectedUser.phone}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#6b7280",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Account Status
+                  </label>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "9999px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      backgroundColor: selectedUser.is_suspended
+                        ? "#fef3c7"
+                        : "#d1fae5",
+                      color: selectedUser.is_suspended ? "#92400e" : "#065f46",
+                    }}
+                  >
+                    {selectedUser.is_suspended ? "Suspended" : "Active"}
+                  </span>
+                </div>
+
+                {/* Created At */}
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#6b7280",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Account Created
+                  </label>
+                  <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                    {new Date(selectedUser.created_at).toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Delivery Details if available */}
+                {selectedUser.delivery_info && (
+                  <div
+                    style={{
+                      borderTop: "1px solid #e5e7eb",
+                      paddingTop: "1rem",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "600",
+                        color: "#1f2937",
+                        marginBottom: "1rem",
+                      }}
+                    >
+                      Delivery Information
+                    </h3>
+                    <div style={{ display: "grid", gap: "1rem" }}>
+                      {selectedUser.delivery_info.address && (
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: "#6b7280",
+                              marginBottom: "0.25rem",
+                            }}
+                          >
+                            Address
+                          </label>
+                          <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                            {selectedUser.delivery_info.address}
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "1rem",
+                        }}
+                      >
+                        {selectedUser.delivery_info.city && (
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#6b7280",
+                                marginBottom: "0.25rem",
+                              }}
+                            >
+                              City
+                            </label>
+                            <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                              {selectedUser.delivery_info.city}
+                            </div>
+                          </div>
+                        )}
+                        {selectedUser.delivery_info.state && (
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#6b7280",
+                                marginBottom: "0.25rem",
+                              }}
+                            >
+                              State
+                            </label>
+                            <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                              {selectedUser.delivery_info.state}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {selectedUser.delivery_info.country && (
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: "#6b7280",
+                              marginBottom: "0.25rem",
+                            }}
+                          >
+                            Country
+                          </label>
+                          <div style={{ fontSize: "14px", color: "#1f2937" }}>
+                            {selectedUser.delivery_info.country}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  marginTop: "1.5rem",
+                  paddingTop: "1rem",
+                  borderTop: "1px solid #e5e7eb",
+                }}
+              >
+                {selectedUser.is_suspended ? (
+                  <button
+                    onClick={() => {
+                      setShowUserModal(false);
+                      handleUserAction(selectedUser.id, "unsuspend");
+                    }}
+                    disabled={actionLoading}
+                    style={{
+                      flex: 1,
+                      padding: "0.75rem 1.5rem",
+                      backgroundColor: actionLoading ? "#9ca3af" : "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: actionLoading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Unsuspend User
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowUserModal(false);
+                      handleUserAction(selectedUser.id, "suspend");
+                    }}
+                    disabled={actionLoading}
+                    style={{
+                      flex: 1,
+                      padding: "0.75rem 1.5rem",
+                      backgroundColor: actionLoading ? "#9ca3af" : "#f59e0b",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: actionLoading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Suspend User
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowUserModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem 1.5rem",
+                    backgroundColor: "#f3f4f6",
+                    color: "#374151",
+                    border: "2px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
         @media (max-width: 768px) {
           .admin-header-inner {
             flex-direction: column;
@@ -2668,6 +6859,13 @@ export default function AdminDashboard() {
             flex-direction: column;
             align-items: flex-start;
             gap: 0.75rem;
+          }
+        }
+
+        @media (max-width: 1024px) {
+          /* Make email composer single column on tablets and mobile */
+          .email-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

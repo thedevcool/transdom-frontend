@@ -18,6 +18,16 @@ import {
 } from "@/lib/countries-data";
 import SearchableSelect from "@/app/components/SearchableSelect";
 
+// Map generic speed names to carrier names
+const getCarrierName = (speed: string): string => {
+  const speedMap: Record<string, string> = {
+    economy: "UPS",
+    standard: "FedEx",
+    express: "DHL",
+  };
+  return speedMap[speed.toLowerCase()] || speed;
+};
+
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
 interface BasicQuote {
@@ -202,13 +212,23 @@ export default function BookingPage() {
         setSenderCountryIso(isoCode);
         const states = getStatesOfCountry(isoCode);
         setSenderStates(states);
-        // Reset state and city when country changes
-        setSenderDetails((prev) => ({ ...prev, state: "", city: "" }));
+        // Reset state and city when country changes - only if they're not already empty
+        setSenderDetails((prev) => {
+          if (prev.state !== "" || prev.city !== "") {
+            return { ...prev, state: "", city: "" };
+          }
+          return prev;
+        });
         setSenderCities([]);
         setSenderStateIso("");
       }
+    } else {
+      // Clear everything if no country selected
+      setSenderStates([]);
+      setSenderCities([]);
+      setSenderCountryIso("");
+      setSenderStateIso("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [senderDetails.country]);
 
   // Load sender cities when sender state changes
@@ -219,9 +239,17 @@ export default function BookingPage() {
         setSenderStateIso(stateIso);
         const cities = getCitiesOfState(senderCountryIso, stateIso);
         setSenderCities(cities);
-        // Reset city when state changes
-        setSenderDetails((prev) => ({ ...prev, city: "" }));
+        // Reset city when state changes - only if it's not already empty
+        setSenderDetails((prev) => {
+          if (prev.city !== "") {
+            return { ...prev, city: "" };
+          }
+          return prev;
+        });
       }
+    } else {
+      // Clear cities if no state selected
+      setSenderCities([]);
     }
   }, [senderCountryIso, senderDetails.state]);
 
@@ -233,13 +261,23 @@ export default function BookingPage() {
         setReceiverCountryIso(isoCode);
         const states = getStatesOfCountry(isoCode);
         setReceiverStates(states);
-        // Reset state and city when country changes
-        setReceiverDetails((prev) => ({ ...prev, state: "", city: "" }));
+        // Reset state and city when country changes - only if they're not already empty
+        setReceiverDetails((prev) => {
+          if (prev.state !== "" || prev.city !== "") {
+            return { ...prev, state: "", city: "" };
+          }
+          return prev;
+        });
         setReceiverCities([]);
         setReceiverStateIso("");
       }
+    } else {
+      // Clear everything if no country selected
+      setReceiverStates([]);
+      setReceiverCities([]);
+      setReceiverCountryIso("");
+      setReceiverStateIso("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receiverDetails.country]);
 
   // Load receiver cities when receiver state changes
@@ -253,9 +291,17 @@ export default function BookingPage() {
         setReceiverStateIso(stateIso);
         const cities = getCitiesOfState(receiverCountryIso, stateIso);
         setReceiverCities(cities);
-        // Reset city when state changes
-        setReceiverDetails((prev) => ({ ...prev, city: "" }));
+        // Reset city when state changes - only if it's not already empty
+        setReceiverDetails((prev) => {
+          if (prev.city !== "") {
+            return { ...prev, city: "" };
+          }
+          return prev;
+        });
       }
+    } else {
+      // Clear cities if no state selected
+      setReceiverCities([]);
     }
   }, [receiverCountryIso, receiverDetails.state]);
 
@@ -693,7 +739,7 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <strong>Delivery:</strong>{" "}
-                  {basicQuote.delivery_speed.toUpperCase()}
+                  {getCarrierName(basicQuote.delivery_speed)}
                 </div>
                 <div>
                   <strong>Base Price:</strong> {basicQuote.currency}{" "}
@@ -1581,7 +1627,7 @@ export default function BookingPage() {
                   )}
                   <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
                     <strong>Delivery Speed:</strong>{" "}
-                    {basicQuote.delivery_speed.toUpperCase()}
+                    {getCarrierName(basicQuote.delivery_speed)}
                   </div>
                   <div style={{ fontSize: "0.9rem" }}>
                     <strong>Estimated Delivery:</strong>{" "}
