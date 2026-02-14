@@ -1171,6 +1171,36 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     }
   }, [orders, selectedUserForEmail]);
 
+  // Role-based access control helpers
+  const hasAccessToTab = useCallback(
+    (tabName: string) => {
+      if (!admin) return false;
+
+      const userRole = admin.role;
+
+      switch (tabName) {
+        case "orders":
+          return userRole === "admin" || userRole === "account";
+        case "zones":
+        case "pricing":
+          return userRole === "admin";
+        case "users":
+          return (
+            userRole === "admin" ||
+            userRole === "account" ||
+            userRole === "support"
+          );
+        case "emails":
+          return userRole === "admin" || userRole === "support";
+        case "admins":
+          return userRole === "admin";
+        default:
+          return false;
+      }
+    },
+    [admin],
+  );
+
   // Set default tab based on admin role
   useEffect(() => {
     if (admin && admin.role) {
@@ -1190,34 +1220,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         }
       }
     }
-  }, [admin, activeTab]);
-
-  // Role-based access control helpers
-  const hasAccessToTab = (tabName: string) => {
-    if (!admin) return false;
-
-    const userRole = admin.role;
-
-    switch (tabName) {
-      case "orders":
-        return userRole === "admin" || userRole === "account";
-      case "zones":
-      case "pricing":
-        return userRole === "admin";
-      case "users":
-        return (
-          userRole === "admin" ||
-          userRole === "account" ||
-          userRole === "support"
-        );
-      case "emails":
-        return userRole === "admin" || userRole === "support";
-      case "admins":
-        return userRole === "admin";
-      default:
-        return false;
-    }
-  };
+  }, [admin, activeTab, hasAccessToTab]);
 
   // Admin management functions
   const fetchAdmins = useCallback(async () => {
@@ -1264,7 +1267,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     } finally {
       setAdminsLoading(false);
     }
-  }, [router]); // Remove admin dependency since hasAccessToTab already uses current admin state
+  }, [router, admin, hasAccessToTab]);
 
   const handleCreateAdmin = async () => {
     if (!adminForm.name || !adminForm.password || !adminForm.role) {
@@ -1503,7 +1506,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         fetchUsers(); // Always fetch users on page load for email functionality
       }, 300);
     }
-  }, []); // Empty dependency array - runs only once
+  }, [checkAdminAuth, fetchOrders, fetchUsers]);
 
   // Handle active tab changes - fetch tab-specific data
   useEffect(() => {
@@ -1520,7 +1523,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     } else if (activeTab === "admins") {
       fetchAdmins();
     }
-  }, [activeTab]); // Only depend on activeTab
+  }, [activeTab, fetchZones, fetchAdmins]);
 
   const handleAddZone = () => {
     setEditingZone(null);
@@ -1681,12 +1684,16 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       }
 
       const data = await response.json();
-      
+
       // Extract zones exactly as in terminal script
       const zones: string[] = Array.from(
-        new Set<string>(data.map((z: any) => String(z.zone || "").trim()).filter((x: string) => x.length > 0))
+        new Set<string>(
+          data
+            .map((z: any) => String(z.zone || "").trim())
+            .filter((x: string) => x.length > 0),
+        ),
       );
-      
+
       if (zones.length === 0) {
         throw new Error(`No zone labels found for ${selectedCarrier}`);
       }
@@ -1718,92 +1725,97 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         zones.forEach((zone: string) => {
           const price = prices[weight][zone];
           // Use actual prices if available, otherwise generate sample
-          const samplePrice = price !== undefined 
-            ? price 
-            : parseFloat((weight * 85000 + Math.random() * 20000).toFixed(2));
+          const samplePrice =
+            price !== undefined
+              ? price
+              : parseFloat((weight * 85000 + Math.random() * 20000).toFixed(2));
           row.push(samplePrice);
         });
         dataRows.push(row);
       });
 
-    const ws = XLSX.utils.aoa_to_sheet([]);
-    XLSX.utils.sheet_add_aoa(ws, [[`TRANSDOM EXPRESS (${selectedCarrier})`]], {
-      origin: "A1",
-    });
-    XLSX.utils.sheet_add_aoa(ws, [headerRow], { origin: "A2" });
-    XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A3" });
+      const ws = XLSX.utils.aoa_to_sheet([]);
+      XLSX.utils.sheet_add_aoa(
+        ws,
+        [[`TRANSDOM EXPRESS (${selectedCarrier})`]],
+        {
+          origin: "A1",
+        },
+      );
+      XLSX.utils.sheet_add_aoa(ws, [headerRow], { origin: "A2" });
+      XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A3" });
 
-    const lastCol = headerRow.length - 1;
-    const lastRow = dataRows.length + 1;
+      const lastCol = headerRow.length - 1;
+      const lastRow = dataRows.length + 1;
 
-    ws["!merges"] = [
-      {
-        s: { r: 0, c: 0 },
-        e: { r: 0, c: lastCol },
-      },
-    ];
+      ws["!merges"] = [
+        {
+          s: { r: 0, c: 0 },
+          e: { r: 0, c: lastCol },
+        },
+      ];
 
-    const colWidths = [{ wch: 14 }];
-    zones.forEach(() => colWidths.push({ wch: 20 }));
-    ws["!cols"] = colWidths;
-    ws["!rows"] = [{ hpx: 30 }, { hpx: 28 }];
+      const colWidths = [{ wch: 14 }];
+      zones.forEach(() => colWidths.push({ wch: 20 }));
+      ws["!cols"] = colWidths;
+      ws["!rows"] = [{ hpx: 30 }, { hpx: 28 }];
 
-    const titleStyle = {
-      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 16 },
-      fill: { fgColor: { rgb: "0066CC" } },
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-    };
+      const titleStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 16 },
+        fill: { fgColor: { rgb: "0066CC" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        },
+      };
 
-    const headerStyle = {
-      font: { bold: true, sz: 11, color: { rgb: "000000" } },
-      fill: { fgColor: { rgb: "E7E6E6" } },
-      alignment: { horizontal: "center", vertical: "center", wrapText: true },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-    };
+      const headerStyle = {
+        font: { bold: true, sz: 11, color: { rgb: "000000" } },
+        fill: { fgColor: { rgb: "E7E6E6" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        },
+      };
 
-    const dataBorder = {
-      top: { style: "thin", color: { rgb: "D3D3D3" } },
-      bottom: { style: "thin", color: { rgb: "D3D3D3" } },
-      left: { style: "thin", color: { rgb: "D3D3D3" } },
-      right: { style: "thin", color: { rgb: "D3D3D3" } },
-    };
+      const dataBorder = {
+        top: { style: "thin", color: { rgb: "D3D3D3" } },
+        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+        left: { style: "thin", color: { rgb: "D3D3D3" } },
+        right: { style: "thin", color: { rgb: "D3D3D3" } },
+      };
 
-    ws["A1"].s = titleStyle;
+      ws["A1"].s = titleStyle;
 
-    for (let C = 0; C <= lastCol; C++) {
-      const headerCell = XLSX.utils.encode_cell({ r: 1, c: C });
-      if (ws[headerCell]) {
-        ws[headerCell].s = headerStyle;
-      }
-    }
-
-    for (let R = 2; R <= lastRow; R++) {
       for (let C = 0; C <= lastCol; C++) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[addr]) continue;
-        ws[addr].s = {
-          border: dataBorder,
-          alignment: {
-            horizontal: C === 0 ? "center" : "right",
-            vertical: "center",
-          },
-        };
-        if (C > 0 && typeof ws[addr].v === "number") {
-          ws[addr].z = "#,##0.00";
+        const headerCell = XLSX.utils.encode_cell({ r: 1, c: C });
+        if (ws[headerCell]) {
+          ws[headerCell].s = headerStyle;
         }
       }
-    }
+
+      for (let R = 2; R <= lastRow; R++) {
+        for (let C = 0; C <= lastCol; C++) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[addr]) continue;
+          ws[addr].s = {
+            border: dataBorder,
+            alignment: {
+              horizontal: C === 0 ? "center" : "right",
+              vertical: "center",
+            },
+          };
+          if (C > 0 && typeof ws[addr].v === "number") {
+            ws[addr].z = "#,##0.00";
+          }
+        }
+      }
 
       // Create workbook
       const wb = XLSX.utils.book_new();
@@ -1849,7 +1861,11 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
       // Extract zones exactly as in terminal script
       const zones: string[] = Array.from(
-        new Set<string>(data.map((z: any) => String(z.zone || "").trim()).filter((x: string) => x.length > 0))
+        new Set<string>(
+          data
+            .map((z: any) => String(z.zone || "").trim())
+            .filter((x: string) => x.length > 0),
+        ),
       );
 
       // Build prices object exactly as in terminal script
@@ -1884,9 +1900,13 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       });
 
       const ws = XLSX.utils.aoa_to_sheet([]);
-      XLSX.utils.sheet_add_aoa(ws, [[`TRANSDOM EXPRESS (${selectedCarrier})`]], {
-        origin: "A1",
-      });
+      XLSX.utils.sheet_add_aoa(
+        ws,
+        [[`TRANSDOM EXPRESS (${selectedCarrier})`]],
+        {
+          origin: "A1",
+        },
+      );
       XLSX.utils.sheet_add_aoa(ws, [headerRow], { origin: "A2" });
       XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A3" });
 
@@ -2019,7 +2039,8 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
       // Check the format - NEW format (zones as columns) or OLD format (zone, weight, price columns)
       const firstRow = jsonData[0] as any;
-      const csvData: Array<{ zone: string; weight: number; price: number }> = [];
+      const csvData: Array<{ zone: string; weight: number; price: number }> =
+        [];
 
       const weightColumnKey =
         firstRow["Weight in kg"] !== undefined
@@ -2037,10 +2058,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
           "UK/IRELAND": "UK_IRELAND",
           "WEST/CENTRAL AFRICA": "WEST_CENTRAL_AFRICA",
           "USA/CANADA": "USA_CANADA",
-          "EUROPE": "EUROPE",
+          EUROPE: "EUROPE",
           "EAST/SOUTH AFRICA": "EAST_SOUTH_AFRICA",
-          "MIDDLEEAST": "MIDDLEEAST",
-          "ASIA": "ASIA",
+          MIDDLEEAST: "MIDDLEEAST",
+          ASIA: "ASIA",
           "SOUTH AMERICA": "SOUTH_AMERICA",
         };
 
@@ -2056,7 +2077,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
           zoneColumns.forEach((zoneDisplay) => {
             const price = parseFloat(
-              String(row[zoneDisplay] || "").replace(/,/g, "")
+              String(row[zoneDisplay] || "").replace(/,/g, ""),
             );
             if (!price || price <= 0) return; // Skip empty/invalid prices
 
@@ -2079,17 +2100,17 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         });
       } else {
         throw new Error(
-          "Excel format not recognized. Expected either 'Weight in Kgs' with zone columns, or 'zone, weight, price' columns"
+          "Excel format not recognized. Expected either 'Weight in Kgs' with zone columns, or 'zone, weight, price' columns",
         );
       }
 
       // Validate data
       const invalidRows = csvData.filter(
-        (row) => !row.zone || row.weight <= 0 || row.price <= 0
+        (row) => !row.zone || row.weight <= 0 || row.price <= 0,
       );
       if (invalidRows.length > 0) {
         throw new Error(
-          `${invalidRows.length} rows have invalid data. Check zone, weight (>0), and price (>0)`
+          `${invalidRows.length} rows have invalid data. Check zone, weight (>0), and price (>0)`,
         );
       }
 
