@@ -123,21 +123,38 @@ export default function ReceiptPage() {
       const receiptElement = document.getElementById("receipt-content");
       if (!receiptElement) return;
 
+      // Scroll to top to ensure full content is in view
+      window.scrollTo(0, 0);
+      
+      // Wait a bit for rendering to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Get the full height of the content
+      const elementHeight = receiptElement.scrollHeight;
+      const elementWidth = receiptElement.offsetWidth;
+
       // Capture the receipt as canvas with optimized settings for smaller file size
       const canvas = await html2canvas(receiptElement, {
         scale: 1.5, // Reduced from 2 to 1.5 for smaller file size
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
+        windowWidth: elementWidth,
+        windowHeight: elementHeight,
+        height: elementHeight,
+        width: elementWidth,
+        x: 0,
+        y: 0,
       });
 
-      // Calculate PDF dimensions
+      // Calculate PDF dimensions to fit A4
       const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       // Create PDF
       const pdf = new jsPDF({
-        orientation: imgHeight > imgWidth ? "portrait" : "portrait",
+        orientation: "portrait",
         unit: "mm",
         format: "a4",
         compress: true, // Enable PDF compression
@@ -145,7 +162,23 @@ export default function ReceiptPage() {
 
       // Convert to JPEG with compression for much smaller file size
       const imgData = canvas.toDataURL("image/jpeg", 0.85); // JPEG with 85% quality
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+      
+      // If content is longer than one page, add multiple pages
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`Transdom_Receipt_${order.order_no}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF:", err);
