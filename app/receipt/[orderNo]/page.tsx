@@ -795,221 +795,229 @@ export default function ReceiptPage() {
           .receipt-container {
             box-shadow: none;
             border-radius: 0;
-            padding: 0.75rem;
+            padding: 0.4rem;
             max-width: 100%;
           }
 
           .company-name {
-            font-size: 18px;
+            font-size: 14px;
           }
 
           .company-tagline {
-            font-size: 10px;
+            font-size: 8px;
           }
 
           .badge-label {
-            font-size: 16px;
+            font-size: 12px;
           }
 
           .badge-status {
-            font-size: 10px;
-            padding: 0.3rem 0.6rem;
+            font-size: 8px;
+            padding: 0.2rem 0.4rem;
           }
 
           .receipt-header {
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
           }
 
           .info-section {
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
           }
 
           .info-label,
           .info-value {
-            font-size: 11px;
+            font-size: 9px;
+          }
+
+          .info-row {
+            margin-bottom: 0.3rem;
           }
 
           .divider {
-            margin: 1rem 0;
+            margin: 0.5rem 0;
             height: 1px;
           }
 
           .parties-section {
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
           }
 
           .party-box {
-            padding: 0.75rem;
+            padding: 0.4rem;
             border-width: 1px;
           }
 
           .party-title {
-            font-size: 13px;
-            margin-bottom: 0.5rem;
+            font-size: 10px;
+            margin-bottom: 0.3rem;
           }
 
           .party-details p {
-            margin: 0.3rem 0;
-            font-size: 11px;
-            line-height: 1.4;
+            margin: 0.2rem 0;
+            font-size: 9px;
+            line-height: 1.3;
           }
 
           .shipment-section,
           .payment-section {
-            margin-bottom: 1rem;
-          }
-
-          .section-title {
-            font-size: 13px;
             margin-bottom: 0.5rem;
           }
 
+          .section-title {
+            font-size: 10px;
+            margin-bottom: 0.3rem;
+          }
+
           .shipment-grid {
-            gap: 0.5rem;
+            gap: 0.3rem;
           }
 
           .detail-label {
-            font-size: 10px;
+            font-size: 8px;
           }
 
           .detail-value {
-            font-size: 11px;
+            font-size: 9px;
           }
 
           .payment-table {
-            padding: 0.75rem;
+            padding: 0.4rem;
             border-width: 1px;
           }
 
           .payment-row {
-            margin-bottom: 0.4rem;
-            font-size: 11px;
+            margin-bottom: 0.2rem;
+            font-size: 9px;
           }
 
           .payment-row.total {
-            font-size: 13px;
-            margin-top: 0.5rem;
+            font-size: 10px;
+            margin-top: 0.3rem;
           }
 
           .receipt-footer {
-            margin-top: 1.5rem;
-            padding-top: 1rem;
+            margin-top: 0.8rem;
+            padding-top: 0.5rem;
           }
 
           .footer-note,
           .footer-contact {
-            font-size: 9px;
+            font-size: 7px;
           }
         }
 
         /* Compact styles for PDF generation */
         .pdf-compact {
-          padding: 0.75rem !important;
+          padding: 0.4rem !important;
           max-width: 100% !important;
         }
 
         .pdf-compact .company-name {
-          font-size: 18px !important;
+          font-size: 14px !important;
         }
 
         .pdf-compact .company-tagline {
-          font-size: 10px !important;
+          font-size: 8px !important;
         }
 
         .pdf-compact .badge-label {
-          font-size: 16px !important;
+          font-size: 12px !important;
         }
 
         .pdf-compact .badge-status {
-          font-size: 10px !important;
-          padding: 0.3rem 0.6rem !important;
+          font-size: 8px !important;
+          padding: 0.2rem 0.4rem !important;
         }
 
         .pdf-compact .receipt-header {
-          margin-bottom: 1rem !important;
+          margin-bottom: 0.5rem !important;
         }
 
         .pdf-compact .info-section {
-          margin-bottom: 1rem !important;
+          margin-bottom: 0.5rem !important;
         }
 
         .pdf-compact .info-label,
         .pdf-compact .info-value {
-          font-size: 11px !important;
+          font-size: 9px !important;
+        }
+
+        .pdf-compact .info-row {
+          margin-bottom: 0.3rem !important;
         }
 
         .pdf-compact .divider {
-          margin: 1rem 0 !important;
+          margin: 0.5rem 0 !important;
           height: 1px !important;
         }
 
         .pdf-compact .parties-section {
-          gap: 1rem !important;
-          margin-bottom: 1rem !important;
+          gap: 0.5rem !important;
+          margin-bottom: 0.5rem !important;
         }
 
         .pdf-compact .party-box {
-          padding: 0.75rem !important;
+          padding: 0.4rem !important;
           border-width: 1px !important;
         }
 
         .pdf-compact .party-title {
-          font-size: 13px !important;
-          margin-bottom: 0.5rem !important;
+          font-size: 10px !important;
+          margin-bottom: 0.3rem !important;
         }
 
         .pdf-compact .party-details p {
-          margin: 0.3rem 0 !important;
-          font-size: 11px !important;
-          line-height: 1.4 !important;
+          margin: 0.2rem 0 !important;
+          font-size: 9px !important;
+          line-height: 1.3 !important;
         }
 
         .pdf-compact .shipment-section,
         .pdf-compact .payment-section {
-          margin-bottom: 1rem !important;
-        }
-
-        .pdf-compact .section-title {
-          font-size: 13px !important;
           margin-bottom: 0.5rem !important;
         }
 
+        .pdf-compact .section-title {
+          font-size: 10px !important;
+          margin-bottom: 0.3rem !important;
+        }
+
         .pdf-compact .shipment-grid {
-          gap: 0.5rem !important;
+          gap: 0.3rem !important;
         }
 
         .pdf-compact .detail-label {
-          font-size: 10px !important;
+          font-size: 8px !important;
         }
 
         .pdf-compact .detail-value {
-          font-size: 11px !important;
+          font-size: 9px !important;
         }
 
         .pdf-compact .payment-table {
-          padding: 0.75rem !important;
+          padding: 0.4rem !important;
           border-width: 1px !important;
         }
 
         .pdf-compact .payment-row {
-          margin-bottom: 0.4rem !important;
-          font-size: 11px !important;
+          margin-bottom: 0.2rem !important;
+          font-size: 9px !important;
         }
 
         .pdf-compact .payment-row.total {
-          font-size: 13px !important;
-          margin-top: 0.5rem !important;
+          font-size: 10px !important;
+          margin-top: 0.3rem !important;
         }
 
         .pdf-compact .receipt-footer {
-          margin-top: 1.5rem !important;
-          padding-top: 1rem !important;
+          margin-top: 0.8rem !important;
+          padding-top: 0.5rem !important;
         }
 
         .pdf-compact .footer-note,
         .pdf-compact .footer-contact {
-          font-size: 9px !important;
+          font-size: 7px !important;
         }
 
         @media (max-width: 768px) {
