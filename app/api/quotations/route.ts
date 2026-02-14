@@ -158,10 +158,10 @@ export async function POST(request: NextRequest) {
             estimated_delivery = "3-5 business days";
             break;
           case "standard":
-            estimated_delivery = "7-10 business days";
+            estimated_delivery = "5-8 business days";
             break;
           case "economy":
-            estimated_delivery = "14-21 business days";
+            estimated_delivery = "5-7 business days";
             break;
         }
 
