@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import SearchableSelect from "@/app/components/SearchableSelect";
+import SEO from "@/app/components/SEO";
 import { useRouter } from "next/navigation";
 import { hasValidAuth } from "@/lib/auth";
 import { Package, Truck } from "lucide-react";
@@ -18,6 +19,9 @@ import {
   StateOption,
   CityOption,
 } from "@/lib/countries-data";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 const BASIC_QUOTE_STORAGE_KEY = "transdom_basic_quote";
 
@@ -295,8 +299,29 @@ export default function QuotationPage() {
     setDestCities([]);
   };
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "International Shipping Quote",
+    description:
+      "Get instant shipping quotes for international package delivery",
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "NGN",
+      lowPrice: "0",
+      availability: "https://schema.org/InStock",
+    },
+  };
+
   return (
     <>
+      <SEO
+        title="Get Instant Shipping Quote - International Shipping Rates Calculator"
+        description="Calculate shipping costs instantly. Get free quotes for DHL, FedEx, UPS international shipping. Compare prices, delivery times, and choose the best option for your package."
+        keywords="shipping quote, shipping calculator, international shipping rates, DHL rates, FedEx prices, UPS shipping cost, freight quote, delivery cost calculator"
+        canonical={`${siteUrl}/quotation`}
+        jsonLd={structuredData}
+      />
       <Header />
 
       {/* Quotation Form Section */}
@@ -1007,6 +1032,7 @@ export default function QuotationPage() {
 
           .quotation-text-content {
             order: 1;
+            padding: 0 1rem;
           }
 
           .quotation-container {
@@ -1027,11 +1053,13 @@ export default function QuotationPage() {
 
           .shipping-tabs {
             gap: 0.5rem;
+            flex-wrap: wrap;
           }
 
           .tab-btn {
             padding: 0.8rem 1rem;
             font-size: 0.9rem;
+            flex: 1 1 100%;
           }
 
           .form-row {
@@ -1058,6 +1086,99 @@ export default function QuotationPage() {
 
           .form-control {
             font-size: 16px; /* Prevent zoom on iOS */
+          }
+
+          .pricing-results {
+            padding: 1.5rem;
+          }
+
+          .pricing-results h3 {
+            font-size: 1.5rem;
+          }
+
+          .result-item {
+            padding: 0.9rem;
+            font-size: 0.95rem;
+          }
+
+          .result-actions {
+            flex-direction: column;
+            gap: 0.8rem;
+          }
+
+          .result-actions button {
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .quotation-wrapper {
+            gap: 1.5rem;
+          }
+
+          .quotation-text-content {
+            padding: 0 0.5rem;
+          }
+
+          .quotation-text-content h1 {
+            font-size: 1.7rem;
+          }
+
+          .quotation-text-content p {
+            font-size: 0.9rem;
+          }
+
+          .quotation-container {
+            padding: 1.2rem;
+          }
+
+          .tab-btn {
+            padding: 0.7rem 0.8rem;
+            font-size: 0.85rem;
+          }
+
+          .form-section-title {
+            font-size: 1.1rem;
+          }
+
+          .form-group label {
+            font-size: 0.85rem;
+          }
+
+          .form-control {
+            padding: 0.75rem 0.8rem;
+            font-size: 16px;
+          }
+
+          .btn-calculate {
+            padding: 0.85rem 1.2rem;
+            font-size: 1rem;
+          }
+
+          .quotation-form-section {
+            padding: 1.5rem 0.8rem;
+          }
+
+          .pricing-results {
+            padding: 1.2rem;
+          }
+
+          .pricing-results h3 {
+            font-size: 1.3rem;
+          }
+
+          .result-item {
+            padding: 0.75rem;
+            font-size: 0.85rem;
+          }
+
+          .result-actions button {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+          }
+
+          .quotation-text-image {
+            margin-top: 1.5rem;
           }
         }
       `}</style>

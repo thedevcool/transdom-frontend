@@ -11,11 +11,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const zone = searchParams.get("zone");
+    const route = searchParams.get("route");
 
     // Build the query parameters
     const params = new URLSearchParams();
     if (zone) {
       params.append("zone", zone);
+    }
+    if (route) {
+      params.append("route", route);
     }
 
     const url = `${API_BASE_URL}/api/rates${params.toString() ? `?${params.toString()}` : ""}`;

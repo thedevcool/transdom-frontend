@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import SEO from "@/app/components/SEO";
 import { useRouter } from "next/navigation";
 import { hasValidAuth, getAuthUser } from "@/lib/auth";
 import { AlertTriangle, Lightbulb, MapPin } from "lucide-react";
@@ -17,6 +18,9 @@ import {
   CityOption,
 } from "@/lib/countries-data";
 import SearchableSelect from "@/app/components/SearchableSelect";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 // Map generic speed names to carrier names
 const getCarrierName = (speed: string): string => {
@@ -595,8 +599,27 @@ export default function BookingPage() {
     return null;
   }
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: "International Shipping Booking",
+    description:
+      "Book and ship packages internationally with instant quotes and real-time tracking",
+    provider: {
+      "@type": "Organization",
+      name: "Transdom Express Logistics",
+    },
+  };
+
   return (
     <>
+      <SEO
+        title="Book Shipment - Complete Your International Shipping Order"
+        description="Book your international shipment with Transdom Express. Enter shipping details, choose delivery speed, and complete payment. Fast, secure, reliable shipping worldwide."
+        keywords="book shipment, ship package internationally, complete shipping order, international delivery booking, send package abroad"
+        canonical={`${siteUrl}/booking`}
+        jsonLd={structuredData}
+      />
       <Header />
 
       {/* Drop-off Acknowledgment Modal */}

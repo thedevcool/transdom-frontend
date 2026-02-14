@@ -5,6 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock, Globe, Mail, MapPin, Phone } from "lucide-react";
 import Footer from "@/app/components/Footer";
+import SEO from "@/app/components/SEO";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 export default function ContactUs() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,6 +25,15 @@ export default function ContactUs() {
 
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
+  };
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Contact Transdom Express Logistics",
+    description:
+      "Contact our 24/7 customer support team for shipping inquiries, quotes, and assistance.",
+    url: `${siteUrl}/contact-us`,
   };
 
   const handleChange = (
@@ -42,6 +55,13 @@ export default function ContactUs() {
 
   return (
     <div className="contact-page">
+      <SEO
+        title="Contact Us - 24/7 Customer Support"
+        description="Contact Transdom Express for shipping inquiries, quotes, and support. Available 24/7 to assist with your international shipping needs. Get in touch today."
+        keywords="contact transdom express, shipping inquiry, customer support, logistics help, get quote, shipping assistance"
+        canonical={`${siteUrl}/contact-us`}
+        jsonLd={structuredData}
+      />
       {/* Header/Navigation */}
       <header>
         <nav>

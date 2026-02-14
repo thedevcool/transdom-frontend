@@ -5,6 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Globe, Rocket, Target, Zap } from "lucide-react";
 import Footer from "@/app/components/Footer";
+import SEO from "@/app/components/SEO";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 export default function AboutUs() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,8 +21,24 @@ export default function AboutUs() {
     setMobileMenuOpen(false);
   };
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "About Transdom Express Logistics",
+    description:
+      "Learn about Transdom Express - A premier international shipping and logistics company serving 200+ countries with reliable, fast delivery solutions.",
+    url: `${siteUrl}/about-us`,
+  };
+
   return (
     <div className="about-page">
+      <SEO
+        title="About Us - Premier International Shipping & Logistics Company"
+        description="Transdom Express is a leading global shipping and logistics provider. With 50,000+ satisfied customers, 200+ countries served, and 99% on-time delivery. Learn our story."
+        keywords="about transdom express, international shipping company, global logistics provider, freight forwarding company, Nigeria logistics, shipping company history"
+        canonical={`${siteUrl}/about-us`}
+        jsonLd={structuredData}
+      />
       {/* Header/Navigation */}
       <header>
         <nav>
@@ -99,10 +119,9 @@ export default function AboutUs() {
               <span className="inline-icon">
                 <Zap size={16} />
               </span>
-              . Transdom Logistics is
-              the easiest way for businesses to ship Worldwide. We are building
-              the Infrastructure for Logistics to enable businesses to access
-              the global economy.
+              . Transdom Logistics is the easiest way for businesses to ship
+              Worldwide. We are building the Infrastructure for Logistics to
+              enable businesses to access the global economy.
             </p>
           </div>
         </div>

@@ -1,0 +1,55 @@
+{
+  "name": "Transdom Express - Global Shipping & Logistics",
+  "short_name": "Transdom Express",
+  "description": "Premier international shipping and logistics services to 200+ countries",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1B5E20",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/transdom_logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["business", "logistics", "shipping"],
+  "shortcuts": [
+    {
+      "name": "Get Quote",
+      "short_name": "Quote",
+      "description": "Get instant shipping quote",
+      "url": "/quotation",
+      "icons": [
+        {
+          "src": "/assets/transdom_logo.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Track Shipment",
+      "short_name": "Track",
+      "description": "Track your shipment",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/assets/transdom_logo.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}

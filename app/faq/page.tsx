@@ -4,6 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/app/components/Footer";
+import SEO from "@/app/components/SEO";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 export default function FAQ() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,8 +78,28 @@ export default function FAQ() {
     },
   ];
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
   return (
     <div className="faq-page">
+      <SEO
+        title="FAQ - Frequently Asked Questions About Shipping"
+        description="Find answers to common questions about international shipping, tracking, payments, delivery times, insurance, and more. Get help with Transdom Express logistics services."
+        keywords="shipping FAQ, international shipping questions, tracking help, payment issues, delivery time, shipping insurance, prohibited items, shipping costs"
+        canonical={`${siteUrl}/faq`}
+        jsonLd={structuredData}
+      />
       {/* Header/Navigation */}
       <header>
         <nav>

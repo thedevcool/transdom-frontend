@@ -28,6 +28,11 @@ import {
   Users,
   Shield,
   UserPlus,
+  Upload,
+  Mail,
+  User,
+  Phone,
+  Building2,
 } from "lucide-react";
 
 interface Order {
@@ -156,6 +161,19 @@ export default function AdminDashboard() {
   const [emailSending, setEmailSending] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [emailMode, setEmailMode] = useState<"user" | "custom" | "bulk">(
+    "user",
+  );
+  const [customEmail, setCustomEmail] = useState("");
+  const [customName, setCustomName] = useState("");
+  const [bulkEmails, setBulkEmails] = useState<string[]>([]);
+  const [bulkSendProgress, setBulkSendProgress] = useState({
+    sent: 0,
+    failed: 0,
+    total: 0,
+  });
+  const [isBulkSending, setIsBulkSending] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   // Admin management states
   const [adminsList, setAdminsList] = useState<any[]>([]);
@@ -930,6 +948,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
           )
           .replace(/{amount}/g, String(firstOrder.amount_paid || ""));
       }
+    } else if (emailMode === "custom" && customName) {
+      // Replace name placeholder with custom name
+      subject = subject.replace(/{name}/g, customName);
+      message = message.replace(/{name}/g, customName);
     }
 
     setEmailForm((prev) => ({
@@ -939,64 +961,199 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     }));
   };
 
+  // Handle CSV file upload for bulk emails
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      // Parse CSV - extract emails from all rows
+      const lines = text.split(/\r?\n/).filter((line) => line.trim());
+      const emails: string[] = [];
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
+      for (const line of lines) {
+        // Split by comma and check each cell
+        const cells = line.split(",");
+        for (const cell of cells) {
+          const trimmed = cell.trim().replace(/^["']|["']$/g, "");
+          const match = trimmed.match(emailRegex);
+          if (match) {
+            const email = match[0].toLowerCase();
+            if (!emails.includes(email)) {
+              emails.push(email);
+            }
+          }
+        }
+      }
+
+      if (emails.length === 0) {
+        alert("No valid email addresses found in the CSV file.");
+        return;
+      }
+
+      setBulkEmails(emails);
+      setEmailForm((prev) => ({
+        ...prev,
+        to_email: `${emails.length} recipients`,
+      }));
+      alert(`Successfully loaded ${emails.length} email addresses from CSV.`);
+    };
+    reader.readAsText(file);
+
+    // Reset file input
+    if (csvInputRef.current) {
+      csvInputRef.current.value = "";
+    }
+  };
+
+  // Remove a single email from bulk list
+  const handleRemoveBulkEmail = (emailToRemove: string) => {
+    const updated = bulkEmails.filter((e) => e !== emailToRemove);
+    setBulkEmails(updated);
+    if (updated.length === 0) {
+      setEmailForm((prev) => ({ ...prev, to_email: "" }));
+    } else {
+      setEmailForm((prev) => ({
+        ...prev,
+        to_email: `${updated.length} recipients`,
+      }));
+    }
+  };
+
   const handleSendEmail = async () => {
-    if (!emailForm.to_email || !emailForm.subject || !emailForm.message) {
-      alert("Please fill in all email fields");
+    // Determine recipient(s) based on mode
+    const recipients: string[] = [];
+
+    if (emailMode === "bulk") {
+      if (bulkEmails.length === 0) {
+        alert("Please upload a CSV with email addresses first");
+        return;
+      }
+      recipients.push(...bulkEmails);
+    } else if (emailMode === "custom") {
+      if (!customEmail) {
+        alert("Please enter a recipient email address");
+        return;
+      }
+      recipients.push(customEmail);
+    } else {
+      if (!emailForm.to_email) {
+        alert("Please select a user");
+        return;
+      }
+      recipients.push(emailForm.to_email);
+    }
+
+    if (!emailForm.subject || !emailForm.message) {
+      alert("Please fill in subject and message");
       return;
     }
 
-    if (
-      !confirm(
-        `Are you sure you want to send this email to ${emailForm.to_email}?`,
-      )
-    ) {
+    const confirmMsg =
+      recipients.length > 1
+        ? `Are you sure you want to send this email to ${recipients.length} recipients?`
+        : `Are you sure you want to send this email to ${recipients[0]}?`;
+
+    if (!confirm(confirmMsg)) {
       return;
     }
 
     setEmailSending(true);
-    try {
-      const token = localStorage.getItem("admin_auth_token");
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+
+    if (emailMode === "bulk" && recipients.length > 1) {
+      // Bulk send mode - send one by one with progress
+      setIsBulkSending(true);
+      setBulkSendProgress({ sent: 0, failed: 0, total: recipients.length });
+
+      let sent = 0;
+      let failed = 0;
+
+      for (const recipientEmail of recipients) {
+        try {
+          const token = localStorage.getItem("admin_auth_token");
+          const headers: HeadersInit = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const response = await fetch("/api/admin/send-custom-email", {
+            method: "POST",
+            credentials: "include",
+            headers,
+            body: JSON.stringify({
+              to_email: recipientEmail,
+              subject: emailForm.subject,
+              message: emailForm.message,
+            }),
+          });
+
+          if (response.ok) {
+            sent++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+        setBulkSendProgress({ sent, failed, total: recipients.length });
       }
 
-      const response = await fetch("/api/admin/send-custom-email", {
-        method: "POST",
-        credentials: "include",
-        headers,
-        body: JSON.stringify({
-          to_email: emailForm.to_email,
-          subject: emailForm.subject,
-          message: emailForm.message,
-        }),
-      });
+      setIsBulkSending(false);
+      alert(
+        `Bulk email complete!\n✓ Sent: ${sent}\n✗ Failed: ${failed}\nTotal: ${recipients.length}`,
+      );
 
-      const data = await response.json();
+      // Clear form
+      setEmailForm({ to_email: "", subject: "", message: "", user_name: "" });
+      setBulkEmails([]);
+      setSelectedTemplate("");
+      setBulkSendProgress({ sent: 0, failed: 0, total: 0 });
+    } else {
+      // Single email send
+      try {
+        const token = localStorage.getItem("admin_auth_token");
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      if (response.ok) {
-        alert("Email sent successfully!");
-        // Clear form
-        setEmailForm({
-          to_email: "",
-          subject: "",
-          message: "",
-          user_name: "",
+        const response = await fetch("/api/admin/send-custom-email", {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({
+            to_email: recipients[0],
+            subject: emailForm.subject,
+            message: emailForm.message,
+          }),
         });
-        setSelectedUserForEmail(null);
-        setUserOrdersForEmail([]);
-        setSelectedTemplate("");
-      } else {
-        alert(data.error || "Failed to send email");
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alert("Email sent successfully!");
+          setEmailForm({
+            to_email: "",
+            subject: "",
+            message: "",
+            user_name: "",
+          });
+          setSelectedUserForEmail(null);
+          setUserOrdersForEmail([]);
+          setSelectedTemplate("");
+          setCustomEmail("");
+          setCustomName("");
+        } else {
+          alert(data.error || data.detail || "Failed to send email");
+        }
+      } catch (error) {
+        console.error("Error sending email:", error);
+        alert("An error occurred while sending the email");
       }
-    } catch (error) {
-      console.error("Error sending email:", error);
-      alert("An error occurred while sending the email");
-    } finally {
-      setEmailSending(false);
     }
+
+    setEmailSending(false);
   };
 
   // Auto-update user orders when orders state changes
@@ -1515,26 +1672,157 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
   };
 
   // Pricing management functions
-  const downloadSampleExcel = () => {
-    // Create sample data for Excel
-    const sampleData = [
-      { zone: "UK_IRELAND", weight: 1, price: 85378.48 },
-      { zone: "UK_IRELAND", weight: 2, price: 102410.07 },
-      { zone: "USA_CANADA", weight: 1, price: 125000.0 },
-      { zone: "USA_CANADA", weight: 2, price: 150000.0 },
-      { zone: "EUROPE", weight: 1, price: 95000.0 },
-      { zone: "EUROPE", weight: 2, price: 115000.0 },
+  const downloadSampleExcel = async () => {
+    setPricingLoading(true);
+    try {
+      const response = await fetch(`/api/rates?route=${selectedCarrier}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch carrier zones");
+      }
+
+      const data = await response.json();
+      
+      // Extract zones exactly as in terminal script
+      const zones: string[] = Array.from(
+        new Set<string>(data.map((z: any) => String(z.zone || "").trim()).filter((x: string) => x.length > 0))
+      );
+      
+      if (zones.length === 0) {
+        throw new Error(`No zone labels found for ${selectedCarrier}`);
+      }
+
+      // Build prices object exactly as in terminal script
+      const prices: Record<number, Record<string, number>> = {};
+      data.forEach((z: any) => {
+        const zone = String(z.zone || "").trim();
+        (z.rates || []).forEach((rate: any) => {
+          if (!prices[rate.weight]) prices[rate.weight] = {};
+          const price =
+            typeof rate.price === "string"
+              ? parseFloat(rate.price.replace(/,/g, ""))
+              : rate.price;
+          prices[rate.weight][zone] = price;
+        });
+      });
+
+      const weights = Object.keys(prices)
+        .map(Number)
+        .sort((a, b) => a - b);
+
+      // Build header and data rows exactly as in terminal script
+      const headerRow = ["Weight in kg", ...zones];
+      const dataRows: (string | number)[][] = [];
+
+      weights.forEach((weight) => {
+        const row: (string | number)[] = [weight];
+        zones.forEach((zone: string) => {
+          const price = prices[weight][zone];
+          // Use actual prices if available, otherwise generate sample
+          const samplePrice = price !== undefined 
+            ? price 
+            : parseFloat((weight * 85000 + Math.random() * 20000).toFixed(2));
+          row.push(samplePrice);
+        });
+        dataRows.push(row);
+      });
+
+    const ws = XLSX.utils.aoa_to_sheet([]);
+    XLSX.utils.sheet_add_aoa(ws, [[`TRANSDOM EXPRESS (${selectedCarrier})`]], {
+      origin: "A1",
+    });
+    XLSX.utils.sheet_add_aoa(ws, [headerRow], { origin: "A2" });
+    XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A3" });
+
+    const lastCol = headerRow.length - 1;
+    const lastRow = dataRows.length + 1;
+
+    ws["!merges"] = [
+      {
+        s: { r: 0, c: 0 },
+        e: { r: 0, c: lastCol },
+      },
     ];
 
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const colWidths = [{ wch: 14 }];
+    zones.forEach(() => colWidths.push({ wch: 20 }));
+    ws["!cols"] = colWidths;
+    ws["!rows"] = [{ hpx: 30 }, { hpx: 28 }];
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Pricing Data");
+    const titleStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 16 },
+      fill: { fgColor: { rgb: "0066CC" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
 
-    // Generate Excel file
-    XLSX.writeFile(wb, `sample_pricing_${selectedCarrier.toLowerCase()}.xlsx`);
+    const headerStyle = {
+      font: { bold: true, sz: 11, color: { rgb: "000000" } },
+      fill: { fgColor: { rgb: "E7E6E6" } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const dataBorder = {
+      top: { style: "thin", color: { rgb: "D3D3D3" } },
+      bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+      left: { style: "thin", color: { rgb: "D3D3D3" } },
+      right: { style: "thin", color: { rgb: "D3D3D3" } },
+    };
+
+    ws["A1"].s = titleStyle;
+
+    for (let C = 0; C <= lastCol; C++) {
+      const headerCell = XLSX.utils.encode_cell({ r: 1, c: C });
+      if (ws[headerCell]) {
+        ws[headerCell].s = headerStyle;
+      }
+    }
+
+    for (let R = 2; R <= lastRow; R++) {
+      for (let C = 0; C <= lastCol; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[addr]) continue;
+        ws[addr].s = {
+          border: dataBorder,
+          alignment: {
+            horizontal: C === 0 ? "center" : "right",
+            vertical: "center",
+          },
+        };
+        if (C > 0 && typeof ws[addr].v === "number") {
+          ws[addr].z = "#,##0.00";
+        }
+      }
+    }
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Pricing Data");
+
+      // Generate Excel file
+      XLSX.writeFile(
+        wb,
+        `sample_pricing_${selectedCarrier.toLowerCase()}.xlsx`,
+        {
+          cellStyles: true,
+        },
+      );
+    } catch (error) {
+      console.error("Error downloading sample pricing:", error);
+      alert("Failed to generate sample pricing template");
+    } finally {
+      setPricingLoading(false);
+    }
   };
 
   const downloadExistingPrices = async () => {
@@ -1553,28 +1841,126 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
       const data = await response.json();
 
-      // Flatten the rates data
-      const excelData: any[] = [];
-      data.forEach((zoneData: any) => {
-        zoneData.rates.forEach((rate: any) => {
-          excelData.push({
-            zone: zoneData.zone,
-            weight: rate.weight,
-            price:
-              typeof rate.price === "string"
-                ? parseFloat(rate.price.replace(/,/g, ""))
-                : rate.price,
-          });
-        });
-      });
-
-      if (excelData.length === 0) {
+      if (!data || data.length === 0) {
         alert("No existing pricing data found for this carrier");
+        setPricingLoading(false);
         return;
       }
 
-      // Create worksheet
-      const ws = XLSX.utils.json_to_sheet(excelData);
+      // Extract zones exactly as in terminal script
+      const zones: string[] = Array.from(
+        new Set<string>(data.map((z: any) => String(z.zone || "").trim()).filter((x: string) => x.length > 0))
+      );
+
+      // Build prices object exactly as in terminal script
+      const prices: Record<number, Record<string, number>> = {};
+      data.forEach((z: any) => {
+        const zone = String(z.zone || "").trim();
+        (z.rates || []).forEach((rate: any) => {
+          if (!prices[rate.weight]) prices[rate.weight] = {};
+          const price =
+            typeof rate.price === "string"
+              ? parseFloat(rate.price.replace(/,/g, ""))
+              : rate.price;
+          prices[rate.weight][zone] = price;
+        });
+      });
+
+      const weights = Object.keys(prices)
+        .map(Number)
+        .sort((a, b) => a - b);
+
+      // Build header and data rows exactly as in terminal script
+      const headerRow = ["Weight in kg", ...zones];
+      const dataRows: (string | number)[][] = [];
+
+      weights.forEach((weight) => {
+        const row: (string | number)[] = [weight];
+        zones.forEach((zone: string) => {
+          const price = prices[weight][zone];
+          row.push(price !== undefined ? price : "");
+        });
+        dataRows.push(row);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([]);
+      XLSX.utils.sheet_add_aoa(ws, [[`TRANSDOM EXPRESS (${selectedCarrier})`]], {
+        origin: "A1",
+      });
+      XLSX.utils.sheet_add_aoa(ws, [headerRow], { origin: "A2" });
+      XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A3" });
+
+      const lastCol = headerRow.length - 1;
+      const lastRow = dataRows.length + 1;
+
+      ws["!merges"] = [
+        {
+          s: { r: 0, c: 0 },
+          e: { r: 0, c: lastCol },
+        },
+      ];
+
+      const colWidths = [{ wch: 14 }];
+      zones.forEach(() => colWidths.push({ wch: 20 }));
+      ws["!cols"] = colWidths;
+      ws["!rows"] = [{ hpx: 30 }, { hpx: 28 }];
+
+      const titleStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 16 },
+        fill: { fgColor: { rgb: "0066CC" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        },
+      };
+
+      const headerStyle = {
+        font: { bold: true, sz: 11, color: { rgb: "000000" } },
+        fill: { fgColor: { rgb: "E7E6E6" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        },
+      };
+
+      const dataBorder = {
+        top: { style: "thin", color: { rgb: "D3D3D3" } },
+        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+        left: { style: "thin", color: { rgb: "D3D3D3" } },
+        right: { style: "thin", color: { rgb: "D3D3D3" } },
+      };
+
+      ws["A1"].s = titleStyle;
+
+      for (let C = 0; C <= lastCol; C++) {
+        const headerCell = XLSX.utils.encode_cell({ r: 1, c: C });
+        if (ws[headerCell]) {
+          ws[headerCell].s = headerStyle;
+        }
+      }
+
+      for (let R = 2; R <= lastRow; R++) {
+        for (let C = 0; C <= lastCol; C++) {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[addr]) continue;
+          ws[addr].s = {
+            border: dataBorder,
+            alignment: {
+              horizontal: C === 0 ? "center" : "right",
+              vertical: "center",
+            },
+          };
+          if (C > 0 && typeof ws[addr].v === "number") {
+            ws[addr].z = "#,##0.00";
+          }
+        }
+      }
 
       // Create workbook
       const wb = XLSX.utils.book_new();
@@ -1584,6 +1970,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       XLSX.writeFile(
         wb,
         `existing_pricing_${selectedCarrier.toLowerCase()}.xlsx`,
+        { cellStyles: true },
       );
     } catch (error) {
       console.error("Error downloading existing prices:", error);
@@ -1622,35 +2009,92 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      // Convert to JSON
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      // Convert to JSON (skip title row by starting from row 2)
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: 1 });
 
       // Validate data structure
       if (!Array.isArray(jsonData) || jsonData.length === 0) {
         throw new Error("Excel file is empty or has invalid format");
       }
 
-      // Check required columns
+      // Check the format - NEW format (zones as columns) or OLD format (zone, weight, price columns)
       const firstRow = jsonData[0] as any;
-      if (!firstRow.zone || !firstRow.weight || !firstRow.price) {
-        throw new Error("Excel must contain columns: zone, weight, price");
-      }
+      const csvData: Array<{ zone: string; weight: number; price: number }> = [];
 
-      // Convert to CSV format
-      const csvData = jsonData.map((row: any) => ({
-        zone: String(row.zone || "").trim(),
-        weight: parseFloat(row.weight) || 0,
-        price: parseFloat(String(row.price).replace(/,/g, "")) || 0,
-      }));
+      const weightColumnKey =
+        firstRow["Weight in kg"] !== undefined
+          ? "Weight in kg"
+          : firstRow["Weight in Kgs"] !== undefined
+            ? "Weight in Kgs"
+            : firstRow["weight"] !== undefined
+              ? "weight"
+              : null;
+
+      if (weightColumnKey) {
+        // NEW FORMAT: Zones as columns, weights as rows
+        // Zone name mapping for backend
+        const zoneMapping: Record<string, string> = {
+          "UK/IRELAND": "UK_IRELAND",
+          "WEST/CENTRAL AFRICA": "WEST_CENTRAL_AFRICA",
+          "USA/CANADA": "USA_CANADA",
+          "EUROPE": "EUROPE",
+          "EAST/SOUTH AFRICA": "EAST_SOUTH_AFRICA",
+          "MIDDLEEAST": "MIDDLEEAST",
+          "ASIA": "ASIA",
+          "SOUTH AMERICA": "SOUTH_AMERICA",
+        };
+
+        // Get zone column names (all columns except "Weight in Kgs")
+        const zoneColumns = Object.keys(firstRow).filter(
+          (key) => key !== weightColumnKey,
+        );
+
+        // Transform data: each weight row × each zone column = one CSV row
+        jsonData.forEach((row: any) => {
+          const weight = parseFloat(row[weightColumnKey]);
+          if (!weight || weight <= 0) return; // Skip invalid weights
+
+          zoneColumns.forEach((zoneDisplay) => {
+            const price = parseFloat(
+              String(row[zoneDisplay] || "").replace(/,/g, "")
+            );
+            if (!price || price <= 0) return; // Skip empty/invalid prices
+
+            const zoneBackend = zoneMapping[zoneDisplay] || zoneDisplay;
+            csvData.push({
+              zone: zoneBackend,
+              weight: weight,
+              price: price,
+            });
+          });
+        });
+      } else if (firstRow.zone && firstRow.weight && firstRow.price) {
+        // OLD FORMAT: Direct zone, weight, price columns (for backward compatibility)
+        jsonData.forEach((row: any) => {
+          csvData.push({
+            zone: String(row.zone || "").trim(),
+            weight: parseFloat(row.weight) || 0,
+            price: parseFloat(String(row.price).replace(/,/g, "")) || 0,
+          });
+        });
+      } else {
+        throw new Error(
+          "Excel format not recognized. Expected either 'Weight in Kgs' with zone columns, or 'zone, weight, price' columns"
+        );
+      }
 
       // Validate data
       const invalidRows = csvData.filter(
-        (row) => !row.zone || row.weight <= 0 || row.price <= 0,
+        (row) => !row.zone || row.weight <= 0 || row.price <= 0
       );
       if (invalidRows.length > 0) {
         throw new Error(
-          `${invalidRows.length} rows have invalid data. Check zone, weight (>0), and price (>0)`,
+          `${invalidRows.length} rows have invalid data. Check zone, weight (>0), and price (>0)`
         );
+      }
+
+      if (csvData.length === 0) {
+        throw new Error("No valid pricing data found in the Excel file");
       }
 
       // Convert to CSV string
@@ -4131,7 +4575,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               Send Custom Email
             </h2>
 
-            {/* User Selection */}
+            {/* Email Mode Toggle */}
             <div style={{ marginBottom: "1.5rem" }}>
               <label
                 style={{
@@ -4142,59 +4586,626 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                   marginBottom: "0.5rem",
                 }}
               >
-                Select User
+                Send To
               </label>
-              <select
-                onChange={(e) => handleUserSelect(e.target.value)}
-                value={selectedUserForEmail?.id || ""}
+              <div
                 style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  outline: "none",
+                  display: "flex",
+                  gap: "0.5rem",
+                  flexWrap: "wrap",
                 }}
               >
-                <option value="">-- Select a user --</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstname} {user.lastname} ({user.email})
-                  </option>
+                {[
+                  {
+                    id: "user" as const,
+                    label: "Registered User",
+                    icon: <User size={14} />,
+                  },
+                  {
+                    id: "custom" as const,
+                    label: "Custom Email",
+                    icon: <Mail size={14} />,
+                  },
+                  {
+                    id: "bulk" as const,
+                    label: "Bulk CSV Upload",
+                    icon: <Upload size={14} />,
+                  },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => {
+                      setEmailMode(mode.id);
+                      setSelectedUserForEmail(null);
+                      setUserOrdersForEmail([]);
+                      setCustomEmail("");
+                      setCustomName("");
+                      setBulkEmails([]);
+                      setEmailForm({
+                        to_email: "",
+                        subject: "",
+                        message: "",
+                        user_name: "",
+                      });
+                      setSelectedTemplate("");
+                    }}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor:
+                        emailMode === mode.id ? "#1B5E20" : "#f3f4f6",
+                      color: emailMode === mode.id ? "white" : "#374151",
+                      border:
+                        emailMode === mode.id
+                          ? "2px solid #1B5E20"
+                          : "2px solid #d1d5db",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                    onMouseOver={(e) => {
+                      if (emailMode !== mode.id) {
+                        e.currentTarget.style.backgroundColor = "#e5e7eb";
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (emailMode !== mode.id) {
+                        e.currentTarget.style.backgroundColor = "#f3f4f6";
+                      }
+                    }}
+                  >
+                    {mode.icon}
+                    {mode.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
-            {/* Email Address (auto-filled, read-only) */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                To Email
-              </label>
-              <input
-                type="email"
-                value={emailForm.to_email}
-                readOnly
-                placeholder="Select a user to auto-fill email..."
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  outline: "none",
-                  backgroundColor: "#f9fafb",
-                  color: "#6b7280",
-                }}
-              />
-            </div>
+            {/* USER MODE: User Selection Dropdown */}
+            {emailMode === "user" && (
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Select User
+                </label>
+                <select
+                  onChange={(e) => handleUserSelect(e.target.value)}
+                  value={selectedUserForEmail?.id || ""}
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">-- Select a user --</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstname} {user.lastname} ({user.email})
+                    </option>
+                  ))}
+                </select>
+
+                {/* User Details Card */}
+                {selectedUserForEmail && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem 1.25rem",
+                      backgroundColor: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          background:
+                            "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "white",
+                          fontWeight: "700",
+                          fontSize: "16px",
+                        }}
+                      >
+                        {(
+                          selectedUserForEmail.firstname?.[0] || ""
+                        ).toUpperCase()}
+                        {(
+                          selectedUserForEmail.lastname?.[0] || ""
+                        ).toUpperCase()}
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: "700",
+                            fontSize: "15px",
+                            color: "#1f2937",
+                          }}
+                        >
+                          {selectedUserForEmail.firstname}{" "}
+                          {selectedUserForEmail.lastname}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#6b7280" }}>
+                          User ID: {selectedUserForEmail.id}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "0.5rem 1rem",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#374151",
+                        }}
+                      >
+                        <Mail size={13} style={{ color: "#6b7280" }} />
+                        <span style={{ color: "#6b7280" }}>Email:</span>{" "}
+                        <span style={{ fontWeight: "500" }}>
+                          {selectedUserForEmail.email}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#374151",
+                        }}
+                      >
+                        <Phone size={13} style={{ color: "#6b7280" }} />
+                        <span style={{ color: "#6b7280" }}>Phone:</span>{" "}
+                        <span style={{ fontWeight: "500" }}>
+                          {selectedUserForEmail.phone_number || "N/A"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#374151",
+                        }}
+                      >
+                        <Building2 size={13} style={{ color: "#6b7280" }} />
+                        <span style={{ color: "#6b7280" }}>Type:</span>{" "}
+                        <span
+                          style={{
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: "9999px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            backgroundColor:
+                              selectedUserForEmail.user_type === "Business"
+                                ? "#dbeafe"
+                                : "#f3e8ff",
+                            color:
+                              selectedUserForEmail.user_type === "Business"
+                                ? "#1e40af"
+                                : "#6b21a8",
+                          }}
+                        >
+                          {selectedUserForEmail.user_type || "Individual"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          color: "#374151",
+                        }}
+                      >
+                        <CheckCircle size={13} style={{ color: "#6b7280" }} />
+                        <span style={{ color: "#6b7280" }}>Status:</span>{" "}
+                        <span
+                          style={{
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: "9999px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            backgroundColor: selectedUserForEmail.is_suspended
+                              ? "#fef3c7"
+                              : "#d1fae5",
+                            color: selectedUserForEmail.is_suspended
+                              ? "#92400e"
+                              : "#065f46",
+                          }}
+                        >
+                          {selectedUserForEmail.is_suspended
+                            ? "Suspended"
+                            : "Active"}
+                        </span>
+                      </div>
+                    </div>
+                    {selectedUserForEmail.company_name && (
+                      <div
+                        style={{
+                          marginTop: "0.5rem",
+                          fontSize: "13px",
+                          color: "#374151",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                        }}
+                      >
+                        <Building2 size={13} style={{ color: "#6b7280" }} />
+                        <span style={{ color: "#6b7280" }}>Company:</span>{" "}
+                        <span style={{ fontWeight: "500" }}>
+                          {selectedUserForEmail.company_name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* CUSTOM MODE: Manual Email Entry */}
+            {emailMode === "custom" && (
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Recipient Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => {
+                    setCustomName(e.target.value);
+                    setEmailForm((prev) => ({
+                      ...prev,
+                      user_name: e.target.value,
+                    }));
+                  }}
+                  placeholder="Enter recipient name..."
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                    marginBottom: "0.75rem",
+                  }}
+                />
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Recipient Email
+                </label>
+                <input
+                  type="email"
+                  value={customEmail}
+                  onChange={(e) => {
+                    setCustomEmail(e.target.value);
+                    setEmailForm((prev) => ({
+                      ...prev,
+                      to_email: e.target.value,
+                    }));
+                  }}
+                  placeholder="Enter email address..."
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* BULK MODE: CSV Upload */}
+            {emailMode === "bulk" && (
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  Upload CSV File
+                </label>
+                <div
+                  style={{
+                    border: "2px dashed #d1d5db",
+                    borderRadius: "8px",
+                    padding: "1.5rem",
+                    textAlign: "center",
+                    backgroundColor: "#f9fafb",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onClick={() => csvInputRef.current?.click()}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = "#10b981";
+                    e.currentTarget.style.backgroundColor = "#f0fdf4";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = "#d1d5db";
+                    e.currentTarget.style.backgroundColor = "#f9fafb";
+                  }}
+                >
+                  <Upload
+                    size={32}
+                    style={{ color: "#6b7280", marginBottom: "0.5rem" }}
+                  />
+                  <p
+                    style={{
+                      color: "#374151",
+                      fontWeight: "600",
+                      fontSize: "14px",
+                      margin: "0 0 0.25rem 0",
+                    }}
+                  >
+                    Click to upload CSV file
+                  </p>
+                  <p style={{ color: "#9ca3af", fontSize: "12px", margin: 0 }}>
+                    CSV should contain email addresses (one per row or in any
+                    column)
+                  </p>
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvUpload}
+                    style={{ display: "none" }}
+                  />
+                </div>
+
+                {/* Bulk Email List */}
+                {bulkEmails.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "0.5rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#374151",
+                        }}
+                      >
+                        {bulkEmails.length} recipient
+                        {bulkEmails.length !== 1 ? "s" : ""} loaded
+                      </span>
+                      <button
+                        onClick={() => {
+                          setBulkEmails([]);
+                          setEmailForm((prev) => ({ ...prev, to_email: "" }));
+                        }}
+                        style={{
+                          padding: "0.25rem 0.5rem",
+                          backgroundColor: "#fee2e2",
+                          color: "#991b1b",
+                          border: "1px solid #fecaca",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        maxHeight: "160px",
+                        overflowY: "auto",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                        backgroundColor: "white",
+                      }}
+                    >
+                      {bulkEmails.map((email, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "0.4rem 0.75rem",
+                            borderBottom:
+                              idx < bulkEmails.length - 1
+                                ? "1px solid #f3f4f6"
+                                : "none",
+                            fontSize: "13px",
+                            color: "#374151",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.4rem",
+                            }}
+                          >
+                            <Mail size={12} style={{ color: "#9ca3af" }} />
+                            {email}
+                          </span>
+                          <button
+                            onClick={() => handleRemoveBulkEmail(email)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#9ca3af",
+                              padding: "0.15rem",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.color = "#ef4444";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.color = "#9ca3af";
+                            }}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bulk Send Progress */}
+                {isBulkSending && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem",
+                      backgroundColor: "#eff6ff",
+                      borderRadius: "8px",
+                      border: "1px solid #bfdbfe",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "0.5rem",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1e40af",
+                      }}
+                    >
+                      <span>Sending emails...</span>
+                      <span>
+                        {bulkSendProgress.sent + bulkSendProgress.failed} /{" "}
+                        {bulkSendProgress.total}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "8px",
+                        backgroundColor: "#dbeafe",
+                        borderRadius: "4px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${((bulkSendProgress.sent + bulkSendProgress.failed) / bulkSendProgress.total) * 100}%`,
+                          background:
+                            "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                          borderRadius: "4px",
+                          transition: "width 0.3s ease",
+                        }}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "1rem",
+                        marginTop: "0.5rem",
+                        fontSize: "12px",
+                      }}
+                    >
+                      <span style={{ color: "#065f46" }}>
+                        Sent: {bulkSendProgress.sent}
+                      </span>
+                      {bulkSendProgress.failed > 0 && (
+                        <span style={{ color: "#991b1b" }}>
+                          Failed: {bulkSendProgress.failed}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Email Address (shown for user mode, read-only) */}
+            {emailMode === "user" && (
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  To Email
+                </label>
+                <input
+                  type="email"
+                  value={emailForm.to_email}
+                  readOnly
+                  placeholder="Select a user to auto-fill email..."
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    outline: "none",
+                    backgroundColor: "#f9fafb",
+                    color: "#6b7280",
+                  }}
+                />
+              </div>
+            )}
 
             {/* Email Templates */}
             <div style={{ marginBottom: "1.5rem" }}>
@@ -4311,7 +5322,11 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                     message: e.target.value,
                   }))
                 }
-                placeholder="Enter your message here... (Click 'Insert' on any order to add its details)"
+                placeholder={
+                  emailMode === "bulk"
+                    ? "Enter your message here... This will be sent to all recipients."
+                    : "Enter your message here... (Click 'Insert' on any order to add its details)"
+                }
                 rows={12}
                 style={{
                   width: "100%",
@@ -4331,7 +5346,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               onClick={handleSendEmail}
               disabled={
                 emailSending ||
-                !emailForm.to_email ||
+                isBulkSending ||
+                (emailMode === "user" && !emailForm.to_email) ||
+                (emailMode === "custom" && !customEmail) ||
+                (emailMode === "bulk" && bulkEmails.length === 0) ||
                 !emailForm.subject ||
                 !emailForm.message
               }
@@ -4340,7 +5358,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                 padding: "1rem 2rem",
                 background:
                   emailSending ||
-                  !emailForm.to_email ||
+                  isBulkSending ||
+                  (emailMode === "user" && !emailForm.to_email) ||
+                  (emailMode === "custom" && !customEmail) ||
+                  (emailMode === "bulk" && bulkEmails.length === 0) ||
                   !emailForm.subject ||
                   !emailForm.message
                     ? "#9ca3af"
@@ -4352,7 +5373,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                 fontWeight: "600",
                 cursor:
                   emailSending ||
-                  !emailForm.to_email ||
+                  isBulkSending ||
+                  (emailMode === "user" && !emailForm.to_email) ||
+                  (emailMode === "custom" && !customEmail) ||
+                  (emailMode === "bulk" && bulkEmails.length === 0) ||
                   !emailForm.subject ||
                   !emailForm.message
                     ? "not-allowed"
@@ -4365,12 +5389,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                 boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
               }}
               onMouseOver={(e) => {
-                if (
-                  !emailSending &&
-                  emailForm.to_email &&
-                  emailForm.subject &&
-                  emailForm.message
-                ) {
+                if (!emailSending && !isBulkSending) {
                   e.currentTarget.style.transform = "translateY(-2px)";
                   e.currentTarget.style.boxShadow =
                     "0 6px 16px rgba(16, 185, 129, 0.4)";
@@ -4382,24 +5401,28 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                   "0 4px 12px rgba(16, 185, 129, 0.3)";
               }}
             >
-              {emailSending ? (
+              {emailSending || isBulkSending ? (
                 <>
                   <RefreshCw
                     size={20}
                     style={{ animation: "spin 1s linear infinite" }}
                   />
-                  Sending...
+                  {isBulkSending
+                    ? `Sending ${bulkSendProgress.sent + bulkSendProgress.failed}/${bulkSendProgress.total}...`
+                    : "Sending..."}
                 </>
               ) : (
                 <>
                   <Send size={20} />
-                  Send Email
+                  {emailMode === "bulk" && bulkEmails.length > 0
+                    ? `Send to ${bulkEmails.length} Recipient${bulkEmails.length !== 1 ? "s" : ""}`
+                    : "Send Email"}
                 </>
               )}
             </button>
           </div>
 
-          {/* User Orders Sidebar */}
+          {/* Sidebar: User Details & Orders */}
           <div
             style={{
               backgroundColor: "white",
@@ -4410,151 +5433,342 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               overflowY: "auto",
             }}
           >
-            <h3
-              style={{
-                fontSize: "18px",
-                fontWeight: "bold",
-                color: "#1f2937",
-                marginBottom: "1rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <Package size={20} />
-              User Orders
-            </h3>
+            {emailMode === "user" ? (
+              <>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    color: "#1f2937",
+                    marginBottom: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Package size={20} />
+                  User Orders
+                </h3>
 
-            {!selectedUserForEmail ? (
-              <p style={{ color: "#6b7280", fontSize: "14px" }}>
-                Select a user to view their orders
-              </p>
-            ) : userOrdersForEmail.length === 0 ? (
-              <p style={{ color: "#6b7280", fontSize: "14px" }}>
-                No orders found for this user
-              </p>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                }}
-              >
-                {userOrdersForEmail.map((order) => (
+                {!selectedUserForEmail ? (
+                  <p style={{ color: "#6b7280", fontSize: "14px" }}>
+                    Select a user to view their orders
+                  </p>
+                ) : userOrdersForEmail.length === 0 ? (
+                  <p style={{ color: "#6b7280", fontSize: "14px" }}>
+                    No orders found for this user
+                  </p>
+                ) : (
                   <div
-                    key={order._id}
                     style={{
-                      padding: "1rem",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "13px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "1rem",
                     }}
                   >
-                    <div
-                      style={{
-                        fontWeight: "600",
-                        color: "#1f2937",
-                        marginBottom: "0.5rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span>#{order.order_no}</span>
-                      <span
+                    {userOrdersForEmail.map((order) => (
+                      <div
+                        key={order._id}
                         style={{
-                          padding: "0.25rem 0.5rem",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          backgroundColor:
-                            order.status === "pending"
-                              ? "#fef3c7"
-                              : order.status === "approved"
-                                ? "#d1fae5"
-                                : order.status === "shipped"
-                                  ? "#dbeafe"
-                                  : order.status === "delivered"
-                                    ? "#dcfce7"
-                                    : "#fee2e2",
-                          color:
-                            order.status === "pending"
-                              ? "#92400e"
-                              : order.status === "approved"
-                                ? "#065f46"
-                                : order.status === "shipped"
-                                  ? "#1e40af"
-                                  : order.status === "delivered"
-                                    ? "#166534"
-                                    : "#991b1b",
+                          padding: "1rem",
+                          border: "2px solid #e5e7eb",
+                          borderRadius: "8px",
+                          fontSize: "13px",
                         }}
                       >
-                        {order.status}
-                      </span>
-                    </div>
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            color: "#1f2937",
+                            marginBottom: "0.5rem",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>#{order.order_no}</span>
+                          <span
+                            style={{
+                              padding: "0.25rem 0.5rem",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              backgroundColor:
+                                order.status === "pending"
+                                  ? "#fef3c7"
+                                  : order.status === "approved"
+                                    ? "#d1fae5"
+                                    : order.status === "shipped"
+                                      ? "#dbeafe"
+                                      : order.status === "delivered"
+                                        ? "#dcfce7"
+                                        : "#fee2e2",
+                              color:
+                                order.status === "pending"
+                                  ? "#92400e"
+                                  : order.status === "approved"
+                                    ? "#065f46"
+                                    : order.status === "shipped"
+                                      ? "#1e40af"
+                                      : order.status === "delivered"
+                                        ? "#166534"
+                                        : "#991b1b",
+                            }}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            color: "#6b7280",
+                            lineHeight: "1.6",
+                            marginBottom: "0.75rem",
+                          }}
+                        >
+                          <div>
+                            <strong>Zone:</strong> {order.zone_picked}
+                          </div>
+                          <div>
+                            <strong>Weight:</strong>{" "}
+                            {order.shipment_weight || order.weight} kg
+                          </div>
+                          <div>
+                            <strong>Speed:</strong>{" "}
+                            {getCarrierName(order.delivery_speed)}
+                          </div>
+                          <div>
+                            <strong>Amount:</strong> ₦
+                            {order.amount_paid?.toLocaleString()}
+                          </div>
+                          <div>
+                            <strong>Date:</strong>{" "}
+                            {new Date(order.date_created).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleInsertOrderDetails(order)}
+                          style={{
+                            width: "100%",
+                            padding: "0.5rem",
+                            background:
+                              "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "0.5rem",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform =
+                              "translateY(-1px)";
+                            e.currentTarget.style.boxShadow =
+                              "0 2px 8px rgba(16, 185, 129, 0.4)";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        >
+                          <Plus size={14} />
+                          Insert Order Details
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : emailMode === "custom" ? (
+              <>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    color: "#1f2937",
+                    marginBottom: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Mail size={20} />
+                  Custom Email
+                </h3>
+                <div
+                  style={{
+                    padding: "1.5rem",
+                    backgroundColor: "#f9fafb",
+                    borderRadius: "8px",
+                    border: "1px solid #e5e7eb",
+                    textAlign: "center",
+                  }}
+                >
+                  <Mail
+                    size={40}
+                    style={{ color: "#9ca3af", marginBottom: "0.75rem" }}
+                  />
+                  <p
+                    style={{
+                      color: "#6b7280",
+                      fontSize: "14px",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
+                    Sending to a custom email address
+                  </p>
+                  {customEmail && (
                     <div
                       style={{
-                        color: "#6b7280",
-                        lineHeight: "1.6",
-                        marginBottom: "0.75rem",
+                        marginTop: "1rem",
+                        padding: "0.75rem 1rem",
+                        backgroundColor: "#f0fdf4",
+                        borderRadius: "8px",
+                        border: "1px solid #bbf7d0",
+                        fontSize: "14px",
                       }}
                     >
-                      <div>
-                        <strong>Zone:</strong> {order.zone_picked}
+                      <div style={{ fontWeight: "600", color: "#1f2937" }}>
+                        {customName || "No name provided"}
                       </div>
-                      <div>
-                        <strong>Weight:</strong>{" "}
-                        {order.shipment_weight || order.weight} kg
-                      </div>
-                      <div>
-                        <strong>Speed:</strong>{" "}
-                        {getCarrierName(order.delivery_speed)}
-                      </div>
-                      <div>
-                        <strong>Amount:</strong> ₦
-                        {order.amount_paid?.toLocaleString()}
-                      </div>
-                      <div>
-                        <strong>Date:</strong>{" "}
-                        {new Date(order.date_created).toLocaleDateString()}
+                      <div style={{ color: "#6b7280", fontSize: "13px" }}>
+                        {customEmail}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleInsertOrderDetails(order)}
+                  )}
+                  <p
+                    style={{
+                      color: "#9ca3af",
+                      fontSize: "12px",
+                      marginTop: "1rem",
+                    }}
+                  >
+                    This recipient is not in your system. Templates with
+                    placeholders like {"{name}"} will need manual editing.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: "bold",
+                    color: "#1f2937",
+                    marginBottom: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Upload size={20} />
+                  Bulk Email Guide
+                </h3>
+                <div
+                  style={{
+                    padding: "1.5rem",
+                    backgroundColor: "#eff6ff",
+                    borderRadius: "8px",
+                    border: "1px solid #bfdbfe",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#1e40af",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    CSV Format Guide
+                  </h4>
+                  <ul
+                    style={{
+                      color: "#3730a3",
+                      fontSize: "13px",
+                      lineHeight: "1.8",
+                      margin: 0,
+                      paddingLeft: "1.25rem",
+                    }}
+                  >
+                    <li>One email address per row</li>
+                    <li>Emails can be in any column</li>
+                    <li>Header rows are auto-skipped if detected</li>
+                    <li>Duplicates are automatically removed</li>
+                    <li>Invalid emails are filtered out</li>
+                  </ul>
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "0.75rem",
+                      backgroundColor: "white",
+                      borderRadius: "6px",
+                      border: "1px solid #dbeafe",
+                    }}
+                  >
+                    <p
                       style={{
-                        width: "100%",
-                        padding: "0.5rem",
-                        background:
-                          "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "0.5rem",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 2px 8px rgba(16, 185, 129, 0.4)";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
+                        color: "#374151",
+                        marginBottom: "0.25rem",
                       }}
                     >
-                      <Plus size={14} />
-                      Insert Order Details
-                    </button>
+                      Example CSV:
+                    </p>
+                    <pre
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        margin: 0,
+                        fontFamily: "monospace",
+                        lineHeight: "1.6",
+                      }}
+                    >
+                      {`email
+john@example.com
+jane@example.com
+bob@company.com`}
+                    </pre>
                   </div>
-                ))}
-              </div>
+                </div>
+                {bulkEmails.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem",
+                      backgroundColor: "#f0fdf4",
+                      borderRadius: "8px",
+                      border: "1px solid #bbf7d0",
+                      textAlign: "center",
+                    }}
+                  >
+                    <CheckCircle
+                      size={24}
+                      style={{ color: "#10b981", marginBottom: "0.25rem" }}
+                    />
+                    <p
+                      style={{
+                        fontWeight: "600",
+                        color: "#065f46",
+                        fontSize: "15px",
+                        margin: "0 0 0.25rem 0",
+                      }}
+                    >
+                      {bulkEmails.length} recipients ready
+                    </p>
+                    <p
+                      style={{ color: "#6b7280", fontSize: "12px", margin: 0 }}
+                    >
+                      Fill in subject and message, then click Send
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

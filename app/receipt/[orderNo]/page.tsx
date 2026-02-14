@@ -123,9 +123,9 @@ export default function ReceiptPage() {
       const receiptElement = document.getElementById("receipt-content");
       if (!receiptElement) return;
 
-      // Capture the receipt as canvas
+      // Capture the receipt as canvas with optimized settings for smaller file size
       const canvas = await html2canvas(receiptElement, {
-        scale: 2,
+        scale: 1.5, // Reduced from 2 to 1.5 for smaller file size
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
@@ -140,10 +140,12 @@ export default function ReceiptPage() {
         orientation: imgHeight > imgWidth ? "portrait" : "portrait",
         unit: "mm",
         format: "a4",
+        compress: true, // Enable PDF compression
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+      // Convert to JPEG with compression for much smaller file size
+      const imgData = canvas.toDataURL("image/jpeg", 0.85); // JPEG with 85% quality
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
       pdf.save(`Transdom_Receipt_${order.order_no}.pdf`);
     } catch (err) {
       console.error("Failed to generate PDF:", err);
@@ -754,26 +756,119 @@ export default function ReceiptPage() {
         }
 
         @media (max-width: 768px) {
+          .receipt-page {
+            padding: 1rem 0.5rem;
+          }
+
           .receipt-container {
-            padding: 1.5rem;
+            padding: 1.5rem 1rem;
+            border-radius: 8px;
+          }
+
+          .receipt-header {
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          .company-name {
+            font-size: 24px;
+          }
+
+          .receipt-badge {
+            text-align: left;
+          }
+
+          .badge-label {
+            font-size: 22px;
           }
 
           .parties-section {
             grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+
+          .party-box {
+            padding: 1rem;
+          }
+
+          .party-title {
+            font-size: 16px;
           }
 
           .shipment-grid {
             grid-template-columns: 1fr;
           }
 
+          .section-title {
+            font-size: 18px;
+          }
+
           .receipt-actions {
             flex-direction: column;
             gap: 1rem;
             align-items: stretch;
+            padding: 0 0.5rem;
           }
 
           .action-buttons {
             flex-direction: column;
+            width: 100%;
+          }
+
+          .btn-back,
+          .btn-print,
+          .btn-download {
+            width: 100%;
+            padding: 0.875rem;
+            font-size: 15px;
+          }
+
+          .info-row {
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+
+          .payment-table {
+            padding: 1rem;
+          }
+
+          .payment-row {
+            font-size: 14px;
+          }
+
+          .payment-row.total {
+            font-size: 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .receipt-container {
+            padding: 1rem 0.75rem;
+          }
+
+          .company-name {
+            font-size: 20px;
+          }
+
+          .badge-label {
+            font-size: 18px;
+          }
+
+          .badge-status {
+            padding: 0.4rem 0.8rem;
+            font-size: 12px;
+          }
+
+          .party-box {
+            padding: 0.75rem;
+          }
+
+          .party-details p {
+            font-size: 14px;
+          }
+
+          .detail-value {
+            font-size: 14px;
           }
         }
       `}</style>

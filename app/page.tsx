@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import SEO from "@/app/components/SEO";
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://transdomlogistics.com";
 
 export default function Home() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
@@ -21,8 +25,72 @@ export default function Home() {
     setOpenFaqIndex(openFaqIndex === index ? null : index);
   };
 
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: "International Shipping Services",
+      provider: {
+        "@type": "Organization",
+        name: "Transdom Express Logistics",
+        url: siteUrl,
+      },
+      areaServed: {
+        "@type": "Place",
+        name: "Worldwide",
+      },
+      description:
+        "Professional international shipping and logistics services to 200+ countries",
+      offers: {
+        "@type": "Offer",
+        availability: "https://schema.org/InStock",
+        priceSpecification: {
+          "@type": "PriceSpecification",
+          priceCurrency: "NGN",
+        },
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "How long does international shipping take?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Delivery times vary by destination and service level. Economy shipping typically takes 7-14 business days, Standard 5-10 business days, and Express 2-5 business days.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Do you ship to all countries?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes, we ship to over 200 countries worldwide through our partnerships with major carriers like DHL, FedEx, and UPS.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How can I track my shipment?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "You can track your shipment through your dashboard using your order number, or through the carrier's tracking system using the provided tracking number.",
+          },
+        },
+      ],
+    },
+  ];
+
   return (
     <>
+      <SEO
+        title="Transdom Express - Global Shipping & Logistics Solutions | Ship to 200+ Countries"
+        description="Get instant shipping quotes for international delivery. Ship packages worldwide with DHL, FedEx, UPS. Fast, reliable, affordable. Track shipments 24/7. Serving 200+ countries."
+        keywords="international shipping, global logistics, ship packages worldwide, DHL shipping rates, FedEx international, UPS worldwide, freight forwarding, express delivery, door to door shipping, customs clearance, Nigeria shipping, Africa logistics"
+        canonical={siteUrl}
+        jsonLd={structuredData}
+      />
       <Header />
 
       {/* Hero Section */}

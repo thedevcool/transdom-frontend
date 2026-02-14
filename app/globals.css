@@ -2612,3 +2612,399 @@ footer {
         font-size: 0.8rem;
     }
 }
+
+/* Homepage Mobile Enhancements */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.2rem;
+        line-height: 1.1;
+    }
+
+    .hero-highlight {
+        font-size: 2.2rem;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+        max-width: 100%;
+    }
+
+    .hero-cta {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .hero-cta .btn-primary,
+    .hero-cta .btn-secondary {
+        width: 100%;
+        padding: 0.9rem 2rem;
+        font-size: 0.95rem;
+    }
+
+    .hero-visual {
+        display: none;
+    }
+
+    .features {
+        padding: 3rem 1.5rem;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .feature-card {
+        padding: 1.8rem;
+    }
+
+    .feature-card h3 {
+        font-size: 1.2rem;
+    }
+
+    .feature-card p {
+        font-size: 0.95rem;
+    }
+
+    .services {
+        padding: 3rem 1.5rem;
+    }
+
+    .services-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .service-box {
+        padding: 2rem;
+    }
+
+    .service-box h3 {
+        font-size: 1.3rem;
+    }
+
+    .section-title {
+        font-size: 1.9rem;
+    }
+
+    .section-subtitle {
+        font-size: 1rem;
+        padding: 0 1rem;
+    }
+
+    .testimonials {
+        padding: 3rem 1.5rem;
+    }
+
+    .testimonials-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .testimonial {
+        padding: 1.8rem;
+    }
+
+    .faq {
+        padding: 3rem 1.5rem;
+    }
+
+    .faq-container {
+        padding: 0;
+    }
+
+    .faq-question {
+        padding: 1.1rem 1.25rem;
+        font-size: 0.95rem;
+    }
+
+    .faq-answer {
+        font-size: 0.95rem;
+    }
+
+    .faq-answer.active {
+        padding: 0.8rem 1.25rem 1.2rem;
+    }
+
+    .final-cta {
+        padding: 3rem 1.5rem;
+    }
+
+    .final-cta h2 {
+        font-size: 2rem;
+    }
+
+    .final-cta p {
+        font-size: 1rem;
+        padding: 0 1rem;
+    }
+
+    .final-cta .btn-primary {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+    }
+
+    .stat-label {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero {
+        padding: 2rem 1rem;
+        padding-top: 2rem;
+    }
+
+    .hero-container {
+        margin-top: 1rem;
+        gap: 1.5rem;
+    }
+
+    .hero-title {
+        font-size: 1.7rem;
+    }
+
+    .hero-highlight {
+        font-size: 1.7rem;
+    }
+
+    .hero-description {
+        font-size: 0.9rem;
+    }
+
+    .hero-cta .btn-primary,
+    .hero-cta .btn-secondary {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .features,
+    .services,
+    .testimonials,
+    .faq {
+        padding: 2.5rem 1rem;
+    }
+
+    .section-title {
+        font-size: 1.6rem;
+    }
+
+    .section-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .feature-card {
+        padding: 1.5rem;
+    }
+
+    .feature-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .feature-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .feature-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .feature-card p {
+        font-size: 0.9rem;
+    }
+
+    .service-box {
+        padding: 1.8rem;
+    }
+
+    .service-box h3 {
+        font-size: 1.2rem;
+    }
+
+    .service-box p {
+        font-size: 0.9rem;
+    }
+
+    .testimonial {
+        padding: 1.5rem;
+    }
+
+    .testimonial-text {
+        font-size: 0.9rem;
+    }
+
+    .faq-question {
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .faq-toggle {
+        width: 28px;
+        height: 28px;
+        font-size: 1.1rem;
+    }
+
+    .faq-answer.active {
+        padding: 0.7rem 1rem 1rem;
+    }
+
+    .final-cta {
+        padding: 2.5rem 1rem;
+    }
+
+    .final-cta h2 {
+        font-size: 1.6rem;
+    }
+
+    .final-cta p {
+        font-size: 0.9rem;
+        padding: 0 0.5rem;
+    }
+
+    .final-cta .btn-primary {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .stats-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+    }
+}
+
+/* Booking Page Mobile Enhancements */
+@media (max-width: 768px) {
+    .quotation-form-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .quotation-wrapper {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        padding: 0;
+    }
+
+    .quotation-container {
+        padding: 1.5rem;
+        margin: 0;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .form-section-title {
+        font-size: 1.2rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        padding: 0.85rem 0.9rem;
+        font-size: 0.95rem;
+    }
+
+    .btn-calculate,
+    .btn-secondary,
+    .btn-primary {
+        width: 100%;
+        padding: 0.9rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    /* Booking progress indicator */
+    .quotation-container > div:first-child {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Review summary styling */
+    .quotation-form > div[style*="backgroundColor"] {
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .quotation-form h4 {
+        font-size: 1.1rem !important;
+    }
+
+    /* Payment method radio labels */
+    label[style*="flex: 1 1 220px"] {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .quotation-form-section {
+        padding: 2rem 1rem;
+    }
+
+    .quotation-container {
+        padding: 1.2rem;
+    }
+
+    .form-section-title {
+        font-size: 1.1rem;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+    }
+
+    .form-control {
+        padding: 0.75rem 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-calculate,
+    .btn-secondary,
+    .btn-primary {
+        padding: 0.8rem 1.2rem;
+        font-size: 0.95rem;
+    }
+
+    /* Booking step labels */
+    .quotation-container > div:first-child span {
+        font-size: 9px !important;
+    }
+
+    /* Reduce spacing in review section */
+    .quotation-form > div[style*="backgroundColor"] {
+        padding: 0.8rem !important;
+    }
+
+    .quotation-form h4 {
+        font-size: 1rem !important;
+        margin-bottom: 0.8rem !important;
+    }
+
+    /* Warning/info boxes */
+    div[style*="backgroundColor: #fff3cd"],
+    div[style*="backgroundColor: #fee"],
+    div[style*="backgroundColor: #d1ecf1"] {
+        padding: 0.8rem !important;
+        font-size: 0.85rem !important;
+    }
+}

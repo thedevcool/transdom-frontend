@@ -17,7 +17,19 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "") || "";
 
-    const url = `${API_BASE_URL}/api/rates`;
+    const { searchParams } = new URL(request.url);
+    const route = searchParams.get("route");
+    const zone = searchParams.get("zone");
+
+    const params = new URLSearchParams();
+    if (route) {
+      params.append("route", route);
+    }
+    if (zone) {
+      params.append("zone", zone);
+    }
+
+    const url = `${API_BASE_URL}/api/rates${params.toString() ? `?${params.toString()}` : ""}`;
 
     const response = await fetch(url, {
       method: "GET",

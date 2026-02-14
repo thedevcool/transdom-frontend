@@ -2175,6 +2175,140 @@ export default function Dashboard() {
           }
         }
 
+        @media (max-width: 480px) {
+          .dashboard-main {
+            padding: 1rem 0.75rem;
+          }
+
+          .welcome-content h1 {
+            font-size: 20px;
+          }
+
+          .welcome-content p {
+            font-size: 13px;
+          }
+
+          .btn-new-shipment {
+            padding: 0.75rem 1rem;
+            font-size: 13px;
+          }
+
+          .tab-btn {
+            padding: 0.85rem 0.9rem;
+            font-size: 13px;
+          }
+
+          .stat-card {
+            padding: 1rem;
+          }
+
+          .stat-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 26px;
+          }
+
+          .stat-value {
+            font-size: 20px;
+          }
+
+          .stat-label {
+            font-size: 12px;
+          }
+
+          .section-title {
+            font-size: 18px;
+          }
+
+          .btn-view-quotation {
+            padding: 0.75rem 1rem;
+            font-size: 13px;
+          }
+
+          .shipment-card {
+            padding: 1rem;
+          }
+
+          .order-no {
+            font-size: 15px;
+          }
+
+          .status-badge {
+            padding: 4px 10px;
+            font-size: 11px;
+          }
+
+          .detail-label {
+            font-size: 12px;
+          }
+
+          .detail-value {
+            font-size: 13px;
+          }
+
+          .info-label {
+            font-size: 11px;
+          }
+
+          .info-value {
+            font-size: 13px;
+          }
+
+          .btn-view-receipt {
+            padding: 0.7rem 1rem;
+            font-size: 13px;
+          }
+
+          .quotation-card {
+            padding: 1rem;
+          }
+
+          .quotation-title {
+            font-size: 14px;
+          }
+
+          .zone-name {
+            font-size: 14px;
+          }
+
+          .price-amount {
+            font-size: 22px;
+          }
+
+          .payment-option {
+            padding: 1rem;
+          }
+
+          .total-price-section {
+            padding: 1rem;
+          }
+
+          .total-label {
+            font-size: 13px;
+          }
+
+          .total-amount {
+            font-size: 24px;
+          }
+
+          .account-info-item {
+            padding: 0.9rem;
+          }
+
+          .account-label {
+            font-size: 12px;
+          }
+
+          .account-value {
+            font-size: 13px;
+          }
+
+          .btn-delete-account {
+            padding: 0.75rem 1rem;
+            font-size: 13px;
+          }
+        }
+
         /* Pending Orders Styles */
         .shipment-card.pending {
           border-left: 4px solid #f59e0b;
