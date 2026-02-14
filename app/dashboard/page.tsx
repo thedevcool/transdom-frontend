@@ -1003,12 +1003,14 @@ export default function Dashboard() {
         .dashboard {
           min-height: 100vh;
           background-color: #f9fafb;
+          overflow-x: hidden;
         }
 
         .dashboard-main {
           max-width: 1200px;
           margin: 0 auto;
           padding: 2.5rem 1.5rem;
+          overflow-x: hidden;
         }
 
         /* Welcome Section */
@@ -2042,62 +2044,115 @@ export default function Dashboard() {
 
         @media (max-width: 768px) {
           .dashboard-main {
-            padding: 1.5rem 1rem;
+            padding: 1rem 0.75rem;
           }
 
           .welcome-section {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: stretch;
             gap: 1rem;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
           }
 
           .welcome-content h1 {
-            font-size: 24px;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+
+          .welcome-content p {
+            font-size: 14px;
           }
 
           .btn-new-shipment {
             width: 100%;
             justify-content: center;
+            padding: 0.875rem 1.25rem;
           }
 
           .tab-navigation {
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
+            padding: 0.5rem;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
           }
 
           .tab-btn {
-            justify-content: flex-start;
+            flex: 1 1 calc(50% - 0.25rem);
+            min-width: 140px;
+            justify-content: center;
+            padding: 0.75rem 0.5rem;
+            font-size: 13px;
+          }
+
+          .tab-icon svg {
+            width: 16px;
+            height: 16px;
+          }
+
+          .badge {
+            font-size: 10px;
+            padding: 2px 5px;
           }
 
           .stats-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
           }
 
           .stat-card {
-            padding: 1.25rem;
+            padding: 1rem;
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
           }
 
           .stat-icon {
-            width: 60px;
-            height: 60px;
+            width: 55px;
+            height: 55px;
             font-size: 32px;
           }
 
+          .stat-icon svg {
+            width: 24px;
+            height: 24px;
+          }
+
+          .stat-label {
+            font-size: 12px;
+          }
+
           .stat-value {
-            font-size: 24px;
+            font-size: 22px;
           }
 
           .section-header {
             flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
+            align-items: stretch;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+          }
+
+          .section-header h2 {
+            font-size: 20px;
           }
 
           .btn-view-quotation {
             width: 100%;
+            padding: 0.75rem;
+            font-size: 14px;
+          }
+
+          .shipments-list {
+            gap: 1rem;
           }
 
           .shipment-card {
-            padding: 1.25rem;
+            padding: 1rem;
           }
 
           .shipment-header {
@@ -2106,44 +2161,140 @@ export default function Dashboard() {
             gap: 0.5rem;
           }
 
+          .order-no {
+            font-size: 15px;
+          }
+
+          .status-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+          }
+
+          .shipment-date {
+            font-size: 12px;
+          }
+
           .detail-row {
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
           }
 
           .detail-divider {
-            transform: rotate(90deg);
+            display: none;
+          }
+
+          .detail-item {
+            gap: 0.75rem;
+          }
+
+          .detail-icon svg {
+            width: 16px;
+            height: 16px;
+          }
+
+          .detail-label {
+            font-size: 11px;
+          }
+
+          .detail-value {
+            font-size: 14px;
+          }
+
+          .detail-sub {
+            font-size: 12px;
           }
 
           .shipment-info {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            padding: 0.75rem;
+          }
+
+          .info-label {
+            font-size: 10px;
+          }
+
+          .info-text {
+            font-size: 12px;
           }
 
           .shipment-actions {
-            justify-content: stretch;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
           }
 
           .btn-view-receipt {
             width: 100%;
             justify-content: center;
+            padding: 0.75rem;
+            font-size: 13px;
           }
 
           .quotation-card {
             padding: 1.25rem;
+            margin-bottom: 1.5rem;
           }
 
           .quotation-header {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: stretch;
             gap: 1rem;
+            margin-bottom: 1.5rem;
+          }
+
+          .quotation-header h2 {
+            font-size: 20px;
           }
 
           .btn-clear {
             width: 100%;
+            padding: 0.75rem;
+          }
+
+          .quote-route {
+            flex-direction: column;
+            padding: 1.25rem;
+            gap: 1rem;
+          }
+
+          .route-point {
+            width: 100%;
+          }
+
+          .route-arrow {
+            transform: rotate(90deg);
+            font-size: 24px;
+          }
+
+          .quote-details-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            padding: 1.25rem;
+          }
+
+          .quote-price {
+            flex-direction: column;
+            gap: 0.75rem;
+            padding: 1.25rem;
+            text-align: center;
+          }
+
+          .price-label {
+            font-size: 16px;
+          }
+
+          .price-value {
+            font-size: 28px;
+          }
+
+          .btn-continue-booking {
+            padding: 1rem 1.5rem;
+            font-size: 16px;
           }
 
           .info-grid {
             grid-template-columns: 1fr;
+            gap: 0.75rem;
           }
 
           .info-item.full-width {
@@ -2154,34 +2305,96 @@ export default function Dashboard() {
             grid-template-columns: 1fr;
           }
 
+          .payment-option {
+            padding: 1rem;
+          }
+
           .total-price-section {
             flex-direction: column;
             gap: 0.5rem;
             text-align: center;
+            padding: 1.25rem;
+          }
+
+          .total-label {
+            font-size: 16px;
+          }
+
+          .total-amount {
+            font-size: 24px;
           }
 
           .account-info-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+
+          .settings-card {
+            padding: 1.25rem;
+          }
+
+          .settings-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+          }
+
+          .settings-icon {
+            width: 40px;
+            height: 40px;
+          }
+
+          .settings-header h3 {
+            font-size: 18px;
           }
 
           .danger-content {
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 1.25rem;
+          }
+
+          .danger-info h4 {
+            font-size: 16px;
           }
 
           .btn-delete-account {
             width: 100%;
             justify-content: center;
           }
+
+          .empty-state {
+            padding: 2.5rem 1.5rem;
+          }
+
+          .empty-icon {
+            font-size: 48px;
+          }
+
+          .empty-icon svg {
+            width: 48px;
+            height: 48px;
+          }
+
+          .empty-state h3 {
+            font-size: 18px;
+          }
+
+          .empty-state p {
+            font-size: 14px;
+          }
         }
 
         @media (max-width: 480px) {
           .dashboard-main {
-            padding: 1rem 0.75rem;
+            padding: 0.75rem 0.5rem;
+          }
+
+          .welcome-section {
+            padding: 1rem;
+            margin-bottom: 1rem;
           }
 
           .welcome-content h1 {
-            font-size: 20px;
+            font-size: 18px;
           }
 
           .welcome-content p {
@@ -2190,44 +2403,385 @@ export default function Dashboard() {
 
           .btn-new-shipment {
             padding: 0.75rem 1rem;
-            font-size: 13px;
+            font-size: 14px;
+          }
+
+          .btn-icon svg {
+            width: 18px;
+            height: 18px;
+          }
+
+          .tab-navigation {
+            padding: 0.4rem;
+            gap: 0.4rem;
           }
 
           .tab-btn {
-            padding: 0.85rem 0.9rem;
-            font-size: 13px;
+            padding: 0.65rem 0.4rem;
+            font-size: 12px;
+            flex: 1 1 calc(50% - 0.2rem);
+            min-width: 120px;
+          }
+
+          .tab-icon svg {
+            width: 14px;
+            height: 14px;
+          }
+
+          .badge {
+            font-size: 9px;
+            padding: 1px 4px;
+          }
+
+          .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
           }
 
           .stat-card {
-            padding: 1rem;
+            padding: 0.85rem;
+            gap: 0.5rem;
           }
 
           .stat-icon {
-            width: 50px;
-            height: 50px;
-            font-size: 26px;
+            width: 48px;
+            height: 48px;
           }
 
-          .stat-value {
-            font-size: 20px;
+          .stat-icon svg {
+            width: 20px;
+            height: 20px;
           }
 
           .stat-label {
-            font-size: 12px;
+            font-size: 11px;
           }
 
-          .section-title {
+          .stat-value {
             font-size: 18px;
           }
 
+          .section-header {
+            gap: 0.5rem;
+          }
+
+          .section-header h2 {
+            font-size: 17px;
+          }
+
           .btn-view-quotation {
-            padding: 0.75rem 1rem;
+            padding: 0.65rem;
             font-size: 13px;
           }
 
+          .shipments-list {
+            gap: 0.75rem;
+          }
+
           .shipment-card {
+            padding: 0.85rem;
+          }
+
+          .order-no {
+            font-size: 14px;
+          }
+
+          .status-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+          }
+
+          .shipment-date {
+            font-size: 11px;
+          }
+
+          .detail-row {
+            gap: 0.5rem;
+          }
+
+          .detail-item {
+            gap: 0.5rem;
+          }
+
+          .detail-icon svg {
+            width: 14px;
+            height: 14px;
+          }
+
+          .detail-label {
+            font-size: 10px;
+          }
+
+          .detail-value {
+            font-size: 13px;
+          }
+
+          .detail-sub {
+            font-size: 11px;
+          }
+
+          .shipment-info {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 0.65rem;
+          }
+
+          .info-label {
+            font-size: 9px;
+          }
+
+          .info-text {
+            font-size: 11px;
+          }
+
+          .shipment-actions {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+          }
+
+          .btn-view-receipt {
+            padding: 0.65rem;
+            font-size: 12px;
+          }
+
+          .quotation-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+
+          .quotation-header {
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+          }
+
+          .quotation-header h2 {
+            font-size: 18px;
+          }
+
+          .btn-clear {
+            padding: 0.65rem;
+            font-size: 13px;
+          }
+
+          .quote-route {
+            padding: 1rem;
+            gap: 0.75rem;
+          }
+
+          .route-icon svg {
+            width: 16px;
+            height: 16px;
+          }
+
+          .route-label {
+            font-size: 10px;
+          }
+
+          .route-value {
+            font-size: 15px;
+          }
+
+          .route-arrow {
+            font-size: 20px;
+          }
+
+          .quote-details-grid {
+            gap: 0.75rem;
             padding: 1rem;
           }
+
+          .detail-label {
+            font-size: 10px;
+          }
+
+          .detail-value {
+            font-size: 14px;
+          }
+
+          .quote-price {
+            padding: 1rem;
+            gap: 0.5rem;
+          }
+
+          .price-label {
+            font-size: 14px;
+          }
+
+          .price-value {
+            font-size: 24px;
+          }
+
+          .btn-continue-booking {
+            padding: 0.85rem 1.25rem;
+            font-size: 14px;
+          }
+
+          .review-section {
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+
+          .section-title {
+            font-size: 16px;
+          }
+
+          .info-grid {
+            gap: 0.5rem;
+          }
+
+          .info-label {
+            font-size: 10px;
+          }
+
+          .info-value {
+            font-size: 13px;
+          }
+
+          .payment-method-section {
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+
+          .payment-option {
+            padding: 0.85rem;
+          }
+
+          .option-icon {
+            font-size: 24px;
+          }
+
+          .option-name {
+            font-size: 14px;
+          }
+
+          .option-desc {
+            font-size: 12px;
+          }
+
+          .total-price-section {
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+
+          .total-label {
+            font-size: 14px;
+          }
+
+          .total-amount {
+            font-size: 20px;
+          }
+
+          .btn-proceed-payment {
+            padding: 0.85rem;
+            font-size: 14px;
+          }
+
+          .settings-section {
+            gap: 1rem;
+          }
+
+          .settings-card {
+            padding: 1rem;
+          }
+
+          .settings-header {
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+          }
+
+          .settings-icon {
+            width: 36px;
+            height: 36px;
+          }
+
+          .settings-icon svg {
+            width: 20px;
+            height: 20px;
+          }
+
+          .settings-header h3 {
+            font-size: 16px;
+          }
+
+          .settings-header p {
+            font-size: 12px;
+          }
+
+          .account-info-grid {
+            gap: 0.75rem;
+          }
+
+          .info-field label {
+            font-size: 11px;
+          }
+
+          .info-value {
+            font-size: 14px;
+          }
+
+          .account-type-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+          }
+
+          .order-count {
+            font-size: 14px;
+          }
+
+          .danger-content {
+            gap: 1rem;
+          }
+
+          .danger-info h4 {
+            font-size: 14px;
+          }
+
+          .danger-info p {
+            font-size: 12px;
+          }
+
+          .btn-delete-account {
+            padding: 0.75rem 1.25rem;
+            font-size: 13px;
+          }
+
+          .empty-state {
+            padding: 2rem 1rem;
+          }
+
+          .empty-icon {
+            font-size: 40px;
+          }
+
+          .empty-icon svg {
+            width: 40px;
+            height: 40px;
+          }
+
+          .empty-state h3 {
+            font-size: 16px;
+          }
+
+          .empty-state p {
+            font-size: 13px;
+            margin-bottom: 1rem;
+          }
+
+          .btn-get-started {
+            padding: 0.75rem 1.5rem;
+            font-size: 14px;
+          }
+
+          .loading-state {
+            padding: 2rem 1rem;
+          }
+
+          .loading-state p {
+            font-size: 13px;
+          }
+        }
 
           .order-no {
             font-size: 15px;
@@ -2306,6 +2860,47 @@ export default function Dashboard() {
           .btn-delete-account {
             padding: 0.75rem 1rem;
             font-size: 13px;
+          }
+        }
+
+        /* Global Mobile Optimizations */
+        @media (max-width: 768px) {
+          * {
+            box-sizing: border-box;
+          }
+
+          .dashboard {
+            overflow-x: hidden;
+            width: 100%;
+          }
+
+          .dashboard-main {
+            width: 100%;
+            overflow-x: hidden;
+          }
+
+          /* Ensure all containers don't overflow */
+          .welcome-section,
+          .tab-navigation,
+          .stats-grid,
+          .shipments-section,
+          .shipments-list,
+          .shipment-card,
+          .quotation-card,
+          .settings-section,
+          .settings-card {
+            max-width: 100%;
+            overflow-x: hidden;
+          }
+
+          /* Ensure text doesn't overflow */
+          .order-no,
+          .detail-value,
+          .route-value,
+          .info-value,
+          .info-text {
+            word-break: break-word;
+            overflow-wrap: break-word;
           }
         }
 
