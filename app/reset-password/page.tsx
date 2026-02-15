@@ -280,10 +280,7 @@ function ResetPasswordForm() {
                         required
                         style={{ paddingLeft: "45px" }}
                       />
-                      <label
-                        htmlFor="confirmPassword"
-                        style={{ left: "45px" }}
-                      >
+                      <label htmlFor="confirmPassword" style={{ left: "45px" }}>
                         Confirm New Password
                       </label>
                       <span className="input-border"></span>

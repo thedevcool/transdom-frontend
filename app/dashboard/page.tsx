@@ -75,8 +75,10 @@ export default function Dashboard() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "quotation" | "pending" | "settings"
+    "overview" | "orders" | "settings"
   >("overview");
+  const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [showQuoteToast, setShowQuoteToast] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleClearQuotation = useCallback(() => {
@@ -116,6 +118,7 @@ export default function Dashboard() {
       const response = await fetch("/api/shipments", {
         method: "GET",
         credentials: "include",
+        cache: "no-store",
       });
 
       if (response.ok) {
@@ -265,6 +268,35 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        {/* Pending Quote Toast */}
+        {basicQuote && showQuoteToast && (
+          <div className="quote-toast">
+            <div className="quote-toast-content" onClick={handleContinueBooking}>
+              <div className="quote-toast-icon">
+                <FileText size={20} />
+              </div>
+              <div className="quote-toast-info">
+                <div className="quote-toast-title">Pending Quote Available</div>
+                <div className="quote-toast-subtitle">
+                  {basicQuote.pickup_country} → {basicQuote.destination_country} • ₦{basicQuote.amount_paid.toLocaleString()}
+                </div>
+              </div>
+              <button className="quote-toast-action">
+                Continue Booking →
+              </button>
+            </div>
+            <button 
+              className="quote-toast-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowQuoteToast(false);
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className="tab-navigation">
           <button
@@ -277,29 +309,18 @@ export default function Dashboard() {
             Overview
           </button>
           <button
-            className={`tab-btn ${activeTab === "pending" ? "active" : ""}`}
-            onClick={() => setActiveTab("pending")}
+            className={`tab-btn ${activeTab === "orders" ? "active" : ""}`}
+            onClick={() => setActiveTab("orders")}
           >
             <span className="tab-icon">
               <Package size={20} />
             </span>
-            Pending Orders
-            {shipments.filter((s) => s.status === "pending").length > 0 && (
+            All Orders
+            {shipments.length > 0 && (
               <span className="badge">
-                {shipments.filter((s) => s.status === "pending").length}
+                {shipments.length}
               </span>
             )}
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "quotation" ? "active" : ""}`}
-            onClick={() => setActiveTab("quotation")}
-            disabled={!basicQuote}
-          >
-            <span className="tab-icon">
-              <FileText size={20} />
-            </span>
-            Pending Quote
-            {basicQuote && <span className="badge">1</span>}
           </button>
           <button
             className={`tab-btn ${activeTab === "settings" ? "active" : ""}`}
@@ -327,29 +348,26 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">
-                  <Truck size={28} />
+                <div className="stat-icon pending-color">
+                  <Hand size={28} />
                 </div>
                 <div className="stat-content">
-                  <div className="stat-label">In Transit</div>
+                  <div className="stat-label">Pending</div>
                   <div className="stat-value">
                     {
-                      shipments.filter(
-                        (s) =>
-                          s.status === "pending" || s.status === "in_transit",
-                      ).length
+                      shipments.filter((s) => s.status === "pending").length
                     }
                   </div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">
+                <div className="stat-icon approved-color">
                   <CheckCircle size={28} />
                 </div>
                 <div className="stat-content">
-                  <div className="stat-label">Delivered</div>
+                  <div className="stat-label">Approved</div>
                   <div className="stat-value">
-                    {shipments.filter((s) => s.status === "delivered").length}
+                    {shipments.filter((s) => s.status === "approved").length}
                   </div>
                 </div>
               </div>
@@ -369,217 +387,156 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Shipments List */}
-            <div className="shipments-section">
-              <div className="section-header">
-                <h2>Recent Shipments</h2>
-                {basicQuote && (
-                  <button
-                    className="btn-view-quotation"
-                    onClick={() => setActiveTab("quotation")}
-                  >
-                    View Pending Quote
-                  </button>
-                )}
-              </div>
-
-              {shipmentsLoading ? (
-                <div className="loading-state">
-                  <div className="loading-spinner"></div>
-                  <p>Loading shipments...</p>
-                </div>
-              ) : shipments.length > 0 ? (
-                <div className="shipments-list">
-                  {shipments.map((shipment) => (
-                    <div key={shipment._id} className="shipment-card">
-                      <div className="shipment-header">
-                        <div className="shipment-title">
-                          <span className="order-no">{shipment.order_no}</span>
-                          <span
-                            className={`status-badge status-${shipment.status}`}
-                          >
-                            {shipment.status.replace("_", " ")}
-                          </span>
-                        </div>
-                        <div className="shipment-date">
-                          {new Date(shipment.date_created).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="shipment-details">
-                        <div className="detail-row">
-                          <div className="detail-item">
-                            <span className="detail-icon">
-                              <Send size={18} />
-                            </span>
-                            <div>
-                              <div className="detail-label">From</div>
-                              <div className="detail-value">
-                                {shipment.sender_name}
-                              </div>
-                              <div className="detail-sub">
-                                {shipment.sender_country}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="detail-divider">→</div>
-                          <div className="detail-item">
-                            <span className="detail-icon">
-                              <Inbox size={18} />
-                            </span>
-                            <div>
-                              <div className="detail-label">To</div>
-                              <div className="detail-value">
-                                {shipment.receiver_name}
-                              </div>
-                              <div className="detail-sub">
-                                {shipment.receiver_country}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="shipment-info">
-                          <div className="info-col">
-                            <div className="info-label">Package</div>
-                            <div className="info-text">
-                              {shipment.shipment_description}
-                            </div>
-                          </div>
-                          <div className="info-col">
-                            <div className="info-label">Weight</div>
-                            <div className="info-text">
-                              {shipment.shipment_weight} kg
-                            </div>
-                          </div>
-                          <div className="info-col">
-                            <div className="info-label">Delivery Speed</div>
-                            <div
-                              className="info-text"
-                              style={{ textTransform: "capitalize" }}
-                            >
-                              {getCarrierName(shipment.delivery_speed)}
-                            </div>
-                          </div>
-                          <div className="info-col">
-                            <div className="info-label">Amount</div>
-                            <div className="info-text">
-                              ₦{shipment.amount_paid.toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* View Receipt Button for Approved Orders */}
-                        {shipment.status === "approved" && (
-                          <div className="shipment-actions">
-                            <Link
-                              href={`/receipt/${shipment.order_no}`}
-                              className="btn-view-receipt"
-                            >
-                              <FileText size={16} /> View Receipt
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-shipments">
-                  <div className="empty-icon">
-                    <Package size={48} />
+            {/* Quick Actions */}
+            <div className="quick-actions-section">
+              <h2>Quick Actions</h2>
+              <div className="quick-actions-grid">
+                <Link href="/quotation" className="quick-action-card">
+                  <div className="quick-action-icon">
+                    <FileText size={32} />
                   </div>
-                  <h3>No Shipments Yet</h3>
-                  <p>Start by creating your first shipping quotation.</p>
-                  <Link href="/quotation" className="btn-get-started">
-                    Get a Quote
-                  </Link>
-                </div>
-              )}
+                  <h3>Get a Quote</h3>
+                  <p>Calculate shipping costs instantly</p>
+                </Link>
+                <Link href="/booking" className="quick-action-card">
+                  <div className="quick-action-icon">
+                    <Send size={32} />
+                  </div>
+                  <h3>New Booking</h3>
+                  <p>Create a new shipment order</p>
+                </Link>
+              </div>
             </div>
           </>
         )}
 
-        {/* Pending Orders Tab */}
-        {activeTab === "pending" && (
+        {/* All Orders Tab */}
+        {activeTab === "orders" && (
           <>
-            <div className="dashboard-header">
-              <h2>Pending Orders</h2>
-              <p>Orders waiting for approval or processing</p>
+            <div className="orders-header">
+              <div>
+                <h2>All Orders</h2>
+                <p>View and manage all your shipments</p>
+              </div>
+              
+              {/* Filter Buttons */}
+              <div className="order-filters">
+                <button
+                  className={`filter-btn ${orderFilter === "all" ? "active" : ""}`}
+                  onClick={() => setOrderFilter("all")}
+                >
+                  All Orders
+                  <span className="filter-count">{shipments.length}</span>
+                </button>
+                <button
+                  className={`filter-btn ${orderFilter === "pending" ? "active" : ""}`}
+                  onClick={() => setOrderFilter("pending")}
+                >
+                  Pending
+                  <span className="filter-count">
+                    {shipments.filter((s) => s.status === "pending").length}
+                  </span>
+                </button>
+                <button
+                  className={`filter-btn ${orderFilter === "approved" ? "active" : ""}`}
+                  onClick={() => setOrderFilter("approved")}
+                >
+                  Approved
+                  <span className="filter-count">
+                    {shipments.filter((s) => s.status === "approved").length}
+                  </span>
+                </button>
+                <button
+                  className={`filter-btn ${orderFilter === "rejected" ? "active" : ""}`}
+                  onClick={() => setOrderFilter("rejected")}
+                >
+                  Rejected
+                  <span className="filter-count">
+                    {shipments.filter((s) => s.status === "rejected").length}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            <div className="shipments-grid">
-              {shipmentsLoading ? (
-                <div className="loading">
-                  <div className="loading-spinner"></div>
-                  <p>Loading your pending orders...</p>
-                </div>
-              ) : (
-                <>
-                  {shipments.filter((shipment) => shipment.status === "pending")
-                    .length > 0 ? (
+            {shipmentsLoading ? (
+              <div className="loading-state">
+                <div className="loading-spinner"></div>
+                <p>Loading your orders...</p>
+              </div>
+            ) : (
+              <>
+                {(() => {
+                  const filteredShipments = orderFilter === "all" 
+                    ? shipments 
+                    : shipments.filter((s) => s.status === orderFilter);
+                  
+                  return filteredShipments.length > 0 ? (
                     <div className="shipments-list">
-                      {shipments
-                        .filter((shipment) => shipment.status === "pending")
-                        .map((shipment) => (
-                          <div
-                            key={shipment._id}
-                            className="shipment-card pending"
-                          >
-                            <div className="shipment-header">
-                              <div className="shipment-info">
-                                <h3 className="order-number">
-                                  {shipment.order_no}
-                                </h3>
-                                <p className="order-route">
-                                  {shipment.sender_country} →{" "}
-                                  {shipment.receiver_country}
-                                </p>
-                              </div>
-                              <div className="shipment-status">
-                                <span className="status-badge pending">
-                                  <Hand size={14} />
-                                  Pending Approval
+                      {filteredShipments.map((shipment) => (
+                        <div key={shipment._id} className="shipment-card">
+                          <div className="shipment-header">
+                            <div className="shipment-title">
+                              <span className="order-no">{shipment.order_no}</span>
+                              <span className={`status-badge status-${shipment.status}`}>
+                                {shipment.status === "pending" && <Hand size={14} />}
+                                {shipment.status === "approved" && <CheckCircle size={14} />}
+                                {shipment.status.replace("_", " ")}
+                              </span>
+                            </div>
+                            <div className="shipment-date">
+                              {new Date(shipment.date_created).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="shipment-details">
+                            <div className="detail-row">
+                              <div className="detail-item">
+                                <span className="detail-icon">
+                                  <Send size={18} />
                                 </span>
+                                <div>
+                                  <div className="detail-label">From</div>
+                                  <div className="detail-value">{shipment.sender_name}</div>
+                                  <div className="detail-sub">{shipment.sender_country}</div>
+                                </div>
+                              </div>
+                              <div className="detail-divider">→</div>
+                              <div className="detail-item">
+                                <span className="detail-icon">
+                                  <Inbox size={18} />
+                                </span>
+                                <div>
+                                  <div className="detail-label">To</div>
+                                  <div className="detail-value">{shipment.receiver_name}</div>
+                                  <div className="detail-sub">{shipment.receiver_country}</div>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="shipment-details">
-                              <div className="detail-row">
-                                <span className="detail-label">Weight:</span>
-                                <span className="detail-value">
-                                  {shipment.shipment_weight}kg
-                                </span>
+                            <div className="shipment-info">
+                              <div className="info-col">
+                                <div className="info-label">Package</div>
+                                <div className="info-text">{shipment.shipment_description}</div>
                               </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Carrier:</span>
-                                <span className="detail-value">
+                              <div className="info-col">
+                                <div className="info-label">Weight</div>
+                                <div className="info-text">{shipment.shipment_weight} kg</div>
+                              </div>
+                              <div className="info-col">
+                                <div className="info-label">Carrier</div>
+                                <div className="info-text" style={{ textTransform: "capitalize" }}>
                                   {getCarrierName(shipment.delivery_speed)}
-                                </span>
+                                </div>
                               </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Amount:</span>
-                                <span className="detail-value">
-                                  ₦
-                                  {new Intl.NumberFormat().format(
-                                    shipment.amount_paid,
-                                  )}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">
-                                  Description:
-                                </span>
-                                <span className="detail-value">
-                                  {shipment.shipment_description}
-                                </span>
+                              <div className="info-col">
+                                <div className="info-label">Amount</div>
+                                <div className="info-text">
+                                  ₦{shipment.amount_paid.toLocaleString()}
+                                </div>
                               </div>
                             </div>
 
@@ -588,157 +545,33 @@ export default function Dashboard() {
                                 href={`/receipt/${shipment.order_no}`}
                                 className="btn-view-receipt"
                               >
-                                <FileText size={16} />
-                                View Details
+                                <FileText size={16} /> View Details
                               </Link>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="empty-state">
                       <div className="empty-icon">
-                        <CheckCircle size={48} />
+                        <Package size={48} />
                       </div>
-                      <h3>No Pending Orders</h3>
+                      <h3>No {orderFilter === "all" ? "" : orderFilter.charAt(0).toUpperCase() + orderFilter.slice(1)} Orders</h3>
                       <p>
-                        All your orders have been processed or you haven&apos;t
-                        placed any orders yet.
+                        {orderFilter === "all" 
+                          ? "You haven't placed any orders yet."
+                          : `You don't have any ${orderFilter} orders at the moment.`}
                       </p>
                       <Link href="/quotation" className="btn-get-started">
                         Create New Order
                       </Link>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                  );
+                })()}
+              </>
+            )}
           </>
-        )}
-
-        {/* Quotation Tab */}
-        {activeTab === "quotation" && basicQuote && (
-          <div className="quotation-card">
-            <div className="quotation-header">
-              <h2>Your Shipping Quote</h2>
-              <button onClick={handleClearQuotation} className="btn-clear">
-                Clear Quote
-              </button>
-            </div>
-
-            <div className="quote-summary">
-              <div className="quote-route">
-                <div className="route-point">
-                  <span className="route-icon">
-                    <MapPin size={18} />
-                  </span>
-                  <div>
-                    <div className="route-label">From</div>
-                    <div className="route-value">
-                      {basicQuote.pickup_country}
-                    </div>
-                    {(basicQuote.pickup_city || basicQuote.pickup_state) && (
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: "#6b7280",
-                          marginTop: "4px",
-                        }}
-                      >
-                        {[basicQuote.pickup_city, basicQuote.pickup_state]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="route-arrow">→</div>
-                <div className="route-point">
-                  <span className="route-icon">
-                    <MapPin size={18} />
-                  </span>
-                  <div>
-                    <div className="route-label">To</div>
-                    <div className="route-value">
-                      {basicQuote.destination_country}
-                    </div>
-                    {(basicQuote.destination_city ||
-                      basicQuote.destination_state) && (
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: "#6b7280",
-                          marginTop: "4px",
-                        }}
-                      >
-                        {[
-                          basicQuote.destination_city,
-                          basicQuote.destination_state,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="quote-details-grid">
-                <div className="quote-detail">
-                  <span className="detail-label">Weight</span>
-                  <span className="detail-value">{basicQuote.weight} kg</span>
-                </div>
-                <div className="quote-detail">
-                  <span className="detail-label">Zone</span>
-                  <span className="detail-value">{basicQuote.zone_picked}</span>
-                </div>
-                <div className="quote-detail">
-                  <span className="detail-label">Delivery Speed</span>
-                  <span
-                    className="detail-value"
-                    style={{ textTransform: "capitalize" }}
-                  >
-                    {getCarrierName(basicQuote.delivery_speed)}
-                  </span>
-                </div>
-                <div className="quote-detail">
-                  <span className="detail-label">Estimated Delivery</span>
-                  <span className="detail-value">
-                    {basicQuote.estimated_delivery}
-                  </span>
-                </div>
-              </div>
-
-              <div className="quote-price">
-                <span className="price-label">Total Price</span>
-                <span className="price-value">
-                  {basicQuote?.currency || "₦"}{" "}
-                  {basicQuote?.amount_paid?.toLocaleString() || "0"}
-                </span>
-              </div>
-
-              <button
-                onClick={handleContinueBooking}
-                className="btn-continue-booking"
-              >
-                Continue with Booking →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* No Quotation in Quotation Tab */}
-        {activeTab === "quotation" && !basicQuote && (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <FileText size={48} />
-            </div>
-            <h3>No Pending Quote</h3>
-            <p>You don&apos;t have any pending quotes at the moment.</p>
-            <Link href="/quotation" className="btn-get-started">
-              Get a Quote
-            </Link>
-          </div>
         )}
 
         {/* Settings Tab */}
@@ -839,6 +672,16 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Floating Action Button - View All Orders */}
+      <button 
+        className="floating-action-button" 
+        onClick={() => setActiveTab("orders")}
+        title="View All Orders"
+      >
+        <Package size={24} />
+        <span className="fab-text">View All Orders</span>
+      </button>
 
       <Footer />
 
@@ -1142,6 +985,102 @@ export default function Dashboard() {
           text-align: center;
         }
 
+        /* Quote Toast */
+        .quote-toast {
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          padding: 1rem 1.5rem;
+          margin-bottom: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+          animation: slideDown 0.4s ease-out;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .quote-toast-content {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          cursor: pointer;
+        }
+
+        .quote-toast-icon {
+          background: #fbbf24;
+          color: white;
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .quote-toast-info {
+          flex: 1;
+        }
+
+        .quote-toast-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #92400e;
+          margin-bottom: 0.25rem;
+        }
+
+        .quote-toast-subtitle {
+          font-size: 14px;
+          color: #78350f;
+        }
+
+        .quote-toast-action {
+          background: #fbbf24;
+          color: white;
+          border: none;
+          padding: 0.625rem 1.25rem;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .quote-toast-action:hover {
+          background: #f59e0b;
+          transform: translateY(-2px);
+        }
+
+        .quote-toast-close {
+          background: transparent;
+          border: none;
+          color: #92400e;
+          font-size: 24px;
+          line-height: 1;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+
+        .quote-toast-close:hover {
+          background: rgba(146, 64, 14, 0.1);
+        }
+
         /* Stats Grid */
         .stats-grid {
           display: grid;
@@ -1178,6 +1117,14 @@ export default function Dashboard() {
           color: #ffffff;
         }
 
+        .stat-icon.pending-color {
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+
+        .stat-icon.approved-color {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
         .stat-icon svg {
           width: 28px;
           height: 28px;
@@ -1198,6 +1145,176 @@ export default function Dashboard() {
           font-size: 28px;
           font-weight: 700;
           color: #047857;
+        }
+
+        /* Quick Actions Section */
+        .quick-actions-section {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .quick-actions-section h2 {
+          font-size: 24px;
+          font-weight: 700;
+          color: #047857;
+          margin-bottom: 1.5rem;
+        }
+
+        .quick-actions-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.5rem;
+        }
+
+        .quick-action-card {
+          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+          border: 2px solid #10b981;
+          border-radius: 12px;
+          padding: 2rem 1.5rem;
+          text-align: center;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          text-decoration: none;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .quick-action-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+          border-color: #059669;
+        }
+
+        .quick-action-icon {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          width: 64px;
+          height: 64px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .quick-action-card h3 {
+          font-size: 18px;
+          font-weight: 700;
+          color: #047857;
+          margin: 0;
+        }
+
+        .quick-action-card p {
+          font-size: 14px;
+          color: #6b7280;
+          margin: 0;
+        }
+
+        /* Floating Action Button */
+        .floating-action-button {
+          position: fixed;
+          right: 2rem;
+          bottom: 2rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem 1.5rem;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          border: none;
+          border-radius: 50px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+          z-index: 999;
+        }
+
+        .floating-action-button:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+          background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+
+        .floating-action-button:active {
+          transform: translateY(-1px);
+        }
+
+        .fab-text {
+          white-space: nowrap;
+        }
+
+        /* Orders Header & Filters */
+        .orders-header {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .orders-header h2 {
+          font-size: 28px;
+          font-weight: 700;
+          color: #047857;
+          margin: 0 0 0.5rem 0;
+        }
+
+        .orders-header > div > p {
+          color: #6b7280;
+          font-size: 16px;
+          margin-bottom: 1.5rem;
+        }
+
+        .order-filters {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .filter-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          color: #6b7280;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+          border-color: #10b981;
+          background: #f0fdf4;
+          color: #047857;
+        }
+
+        .filter-btn.active {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border-color: #10b981;
+          color: white;
+        }
+
+        .filter-count {
+          background: rgba(0, 0, 0, 0.1);
+          padding: 0.125rem 0.5rem;
+          border-radius: 12px;
+          font-size: 13px;
+          min-width: 24px;
+          text-align: center;
+        }
+
+        .filter-btn.active .filter-count {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
         }
 
         /* Shipments Section */
@@ -1318,11 +1435,24 @@ export default function Dashboard() {
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
         }
 
         .status-pending {
           background: #fef3c7;
           color: #92400e;
+        }
+
+        .status-approved {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .status-rejected {
+          background: #fee2e2;
+          color: #991b1b;
         }
 
         .status-in_transit {
@@ -2040,11 +2170,84 @@ export default function Dashboard() {
           .shipment-info {
             grid-template-columns: repeat(2, 1fr);
           }
+
+          .quick-actions-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .floating-action-button {
+            right: 1.5rem;
+            bottom: 1.5rem;
+            padding: 0.875rem 1.25rem;
+            font-size: 15px;
+          }
         }
 
         @media (max-width: 768px) {
           .dashboard-main {
             padding: 1rem 0.75rem;
+          }
+
+          .quote-toast {
+            flex-direction: column;
+            padding: 1rem;
+          }
+
+          .quote-toast-content {
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+          }
+
+          .quote-toast-action {
+            width: 100%;
+            text-align: center;
+          }
+
+          .orders-header {
+            padding: 1rem;
+          }
+
+          .orders-header h2 {
+            font-size: 22px;
+          }
+
+          .order-filters {
+            gap: 0.5rem;
+          }
+
+          .filter-btn {
+            flex: 1 1 calc(50% - 0.25rem);
+            padding: 0.625rem 1rem;
+            font-size: 14px;
+            justify-content: center;
+          }
+
+          .quick-actions-grid {
+            gap: 1rem;
+          }
+
+          .quick-action-card {
+            padding: 1.5rem 1rem;
+          }
+
+          .floating-action-button {
+            right: 1rem;
+            bottom: 1rem;
+            padding: 0.875rem;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);
+          }
+
+          .floating-action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+          }
+
+          .fab-text {
+            display: none;
           }
 
           .welcome-section {

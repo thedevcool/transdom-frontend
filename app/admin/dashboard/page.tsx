@@ -151,6 +151,14 @@ export default function AdminDashboard() {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<any | null>(
     null,
   );
+  const [selectedUsersForEmail, setSelectedUsersForEmail] = useState<any[]>([]); // Multi-select
+  const [userFilter, setUserFilter] = useState<
+    "all" | "individuals" | "business"
+  >("all");
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [emailPreviews, setEmailPreviews] = useState<
+    { email: string; subject: string; message: string; user: any }[]
+  >([]);
   const [userOrdersForEmail, setUserOrdersForEmail] = useState<Order[]>([]);
   const [emailForm, setEmailForm] = useState({
     to_email: "",
@@ -174,6 +182,79 @@ export default function AdminDashboard() {
   });
   const [isBulkSending, setIsBulkSending] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // Notification system states
+  const [notifications, setNotifications] = useState<
+    {
+      id: number;
+      type: "success" | "error" | "warning" | "info";
+      message: string;
+    }[]
+  >([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    isDangerous?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  // Custom notification functions
+  const showNotification = (
+    type: "success" | "error" | "warning" | "info",
+    message: string,
+    duration = 4000,
+  ) => {
+    const id = Date.now();
+    setNotifications((prev) => [...prev, { id, type, message }]);
+
+    if (duration > 0) {
+      setTimeout(() => {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      }, duration);
+    }
+  };
+
+  const showConfirm = (
+    message: string,
+    onConfirm: () => void,
+    options?: {
+      title?: string;
+      confirmText?: string;
+      cancelText?: string;
+      isDangerous?: boolean;
+      onCancel?: () => void;
+    },
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options?.title || "Confirm Action",
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      },
+      onCancel: () => {
+        options?.onCancel?.();
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+      },
+      confirmText: options?.confirmText || "Confirm",
+      cancelText: options?.cancelText || "Cancel",
+      isDangerous: options?.isDangerous || false,
+    });
+  };
+
+  const removeNotification = (id: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   // Admin management states
   const [adminsList, setAdminsList] = useState<any[]>([]);
@@ -451,8 +532,9 @@ The Transdom Express Team`,
         error instanceof Error
           ? error.message
           : "Failed to update order status";
-      alert(
-        `❌ Error: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`,
+      showNotification(
+        "error",
+        `Error: ${errorMessage}. Please try again or contact support if the issue persists.`,
       );
     } finally {
       setActionLoading(false);
@@ -460,15 +542,21 @@ The Transdom Express Team`,
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this order? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      "Are you sure you want to delete this order? This action cannot be undone.",
+      async () => {
+        setActionLoading(true);
+        await executeDeleteOrder(orderId);
+      },
+      {
+        title: "Delete Order",
+        confirmText: "Delete",
+        isDangerous: true,
+      },
+    );
+  };
 
-    setActionLoading(true);
+  const executeDeleteOrder = async (orderId: string) => {
     try {
       const response = await fetch(`/api/admin/orders/${orderId}`, {
         method: "DELETE",
@@ -484,9 +572,10 @@ The Transdom Express Team`,
       await fetchOrders(filterStatus === "all" ? undefined : filterStatus);
       setShowModal(false);
       setSelectedOrder(null);
+      showNotification("success", "Order deleted successfully");
     } catch (error) {
       console.error("Failed to delete order:", error);
-      alert("Failed to delete order");
+      showNotification("error", "Failed to delete order");
     } finally {
       setActionLoading(false);
     }
@@ -494,38 +583,40 @@ The Transdom Express Team`,
 
   const handleDeleteAllOrders = async () => {
     // Triple confirmation for this dangerous action
-    if (
-      !confirm(
-        `⚠️ WARNING: This will permanently delete ALL ${orders.length} orders in the system!\n\nThis action cannot be undone. Are you sure?`,
-      )
-    ) {
-      return;
-    }
-
-    if (
-      !confirm(
-        "This is your second warning. ALL orders will be permanently deleted. Continue?",
-      )
-    ) {
-      return;
-    }
-
-    if (
-      !confirm(
-        "FINAL WARNING: Type 'DELETE' in the next prompt to confirm.\n\nClick OK to proceed to the final confirmation.",
-      )
-    ) {
-      return;
-    }
-
-    const confirmText = prompt(
-      "Type DELETE (in capital letters) to confirm deletion of all orders:",
+    showConfirm(
+      `⚠️ WARNING: This will permanently delete ALL ${orders.length} orders in the system! This action cannot be undone. Are you sure?`,
+      () => {
+        showConfirm(
+          "This is your second warning. ALL orders will be permanently deleted. Continue?",
+          () => {
+            const confirmText = window.prompt(
+              "FINAL WARNING: Type DELETE (in capital letters) to confirm deletion of all orders:",
+            );
+            if (confirmText === "DELETE") {
+              executeDeleteAllOrders();
+            } else {
+              showNotification(
+                "warning",
+                "Deletion cancelled. The text did not match.",
+              );
+            }
+          },
+          {
+            title: "Second Confirmation",
+            confirmText: "Continue",
+            isDangerous: true,
+          },
+        );
+      },
+      {
+        title: "Delete All Orders",
+        confirmText: "Continue",
+        isDangerous: true,
+      },
     );
-    if (confirmText !== "DELETE") {
-      alert("Deletion cancelled. The text did not match.");
-      return;
-    }
+  };
 
+  const executeDeleteAllOrders = async () => {
     setActionLoading(true);
     try {
       const response = await fetch("/api/admin/orders", {
@@ -540,16 +631,18 @@ The Transdom Express Team`,
       }
 
       const data = await response.json();
-      alert(
-        `✅ Success: ${data.deleted_count || "All"} orders have been permanently deleted.`,
+      showNotification(
+        "success",
+        `Success: ${data.deleted_count || "All"} orders have been permanently deleted.`,
       );
 
       // Refresh orders list
       await fetchOrders();
     } catch (error) {
       console.error("Failed to delete all orders:", error);
-      alert(
-        `❌ Error: ${error instanceof Error ? error.message : "Failed to delete all orders"}`,
+      showNotification(
+        "error",
+        `Error: ${error instanceof Error ? error.message : "Failed to delete all orders"}`,
       );
     } finally {
       setActionLoading(false);
@@ -569,17 +662,21 @@ The Transdom Express Team`,
   const handleUpdateOrder = async () => {
     if (!editedOrder || !selectedOrder) return;
 
-    if (
-      !confirm(
-        "Are you sure you want to update this order? This will modify the order details.",
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      "Are you sure you want to update this order? This will modify the order details.",
+      () => executeUpdateOrder(),
+      {
+        title: "Update Order",
+        confirmText: "Update",
+        isDangerous: false,
+      },
+    );
+  };
 
+  const executeUpdateOrder = async () => {
     setActionLoading(true);
     try {
-      const response = await fetch(`/api/admin/orders/${selectedOrder._id}`, {
+      const response = await fetch(`/api/admin/orders/${selectedOrder?._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -587,27 +684,27 @@ The Transdom Express Team`,
         credentials: "include",
         cache: "no-store",
         body: JSON.stringify({
-          sender_name: editedOrder.sender_name,
-          sender_phone: editedOrder.sender_phone,
-          sender_address: editedOrder.sender_address,
-          sender_city: editedOrder.sender_city,
-          sender_state: editedOrder.sender_state,
-          sender_country: editedOrder.sender_country,
-          sender_email: editedOrder.sender_email,
-          receiver_name: editedOrder.receiver_name,
-          receiver_phone: editedOrder.receiver_phone,
-          receiver_address: editedOrder.receiver_address,
-          receiver_city: editedOrder.receiver_city,
-          receiver_state: editedOrder.receiver_state,
-          receiver_post_code: editedOrder.receiver_post_code,
-          receiver_country: editedOrder.receiver_country,
-          shipment_description: editedOrder.shipment_description,
-          shipment_quantity: editedOrder.shipment_quantity,
-          shipment_value: editedOrder.shipment_value,
-          shipment_weight: editedOrder.shipment_weight,
-          weight: editedOrder.weight,
-          zone_picked: editedOrder.zone_picked,
-          delivery_speed: editedOrder.delivery_speed,
+          sender_name: editedOrder?.sender_name,
+          sender_phone: editedOrder?.sender_phone,
+          sender_address: editedOrder?.sender_address,
+          sender_city: editedOrder?.sender_city,
+          sender_state: editedOrder?.sender_state,
+          sender_country: editedOrder?.sender_country,
+          sender_email: editedOrder?.sender_email,
+          receiver_name: editedOrder?.receiver_name,
+          receiver_phone: editedOrder?.receiver_phone,
+          receiver_address: editedOrder?.receiver_address,
+          receiver_city: editedOrder?.receiver_city,
+          receiver_state: editedOrder?.receiver_state,
+          receiver_post_code: editedOrder?.receiver_post_code,
+          receiver_country: editedOrder?.receiver_country,
+          shipment_description: editedOrder?.shipment_description,
+          shipment_quantity: editedOrder?.shipment_quantity,
+          shipment_value: editedOrder?.shipment_value,
+          shipment_weight: editedOrder?.shipment_weight,
+          weight: editedOrder?.weight,
+          zone_picked: editedOrder?.zone_picked,
+          delivery_speed: editedOrder?.delivery_speed,
         }),
       });
 
@@ -626,11 +723,12 @@ The Transdom Express Team`,
       // Refresh orders list
       await fetchOrders(filterStatus === "all" ? undefined : filterStatus);
 
-      alert("✅ Order updated successfully!");
+      showNotification("success", "Order updated successfully!");
     } catch (error) {
       console.error("Failed to update order:", error);
-      alert(
-        `❌ Error: ${error instanceof Error ? error.message : "Failed to update order"}`,
+      showNotification(
+        "error",
+        `Error: ${error instanceof Error ? error.message : "Failed to update order"}`,
       );
     } finally {
       setActionLoading(false);
@@ -640,7 +738,7 @@ The Transdom Express Team`,
   // Download functions for Orders
   const downloadOrdersCSV = () => {
     if (orders.length === 0) {
-      alert("No orders to download");
+      showNotification("warning", "No orders to download");
       return;
     }
 
@@ -694,7 +792,7 @@ The Transdom Express Team`,
 
   const downloadOrdersExcel = () => {
     if (orders.length === 0) {
-      alert("No orders to download");
+      showNotification("warning", "No orders to download");
       return;
     }
 
@@ -757,7 +855,7 @@ The Transdom Express Team`,
   // Download functions for Users
   const downloadUsersCSV = () => {
     if (users.length === 0) {
-      alert("No users to download");
+      showNotification("warning", "No users to download");
       return;
     }
 
@@ -796,7 +894,7 @@ The Transdom Express Team`,
 
   const downloadUsersExcel = () => {
     if (users.length === 0) {
-      alert("No users to download");
+      showNotification("warning", "No users to download");
       return;
     }
 
@@ -916,6 +1014,78 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     }, 0);
   };
 
+  // Template variable parser - replaces @variable with actual user data
+  const parseTemplateVariables = (text: string, user: any): string => {
+    if (!text) return text;
+
+    let parsed = text;
+
+    // User variables
+    parsed = parsed.replace(/@firstname/gi, user.firstname || "");
+    parsed = parsed.replace(/@lastname/gi, user.lastname || "");
+    parsed = parsed.replace(/@email/gi, user.email || "");
+    parsed = parsed.replace(/@phone/gi, user.phone_number || "N/A");
+    parsed = parsed.replace(/@country/gi, user.country || "");
+    parsed = parsed.replace(
+      /@fullname/gi,
+      `${user.firstname || ""} ${user.lastname || ""}`.trim(),
+    );
+    parsed = parsed.replace(/@usertype/gi, user.user_type || "Individual");
+    parsed = parsed.replace(/@company/gi, user.company_name || "N/A");
+
+    return parsed;
+  };
+
+  // Handle multi-user selection
+  const handleUserCheckbox = (user: any, checked: boolean) => {
+    if (checked) {
+      setSelectedUsersForEmail((prev) => [...prev, user]);
+    } else {
+      setSelectedUsersForEmail((prev) => prev.filter((u) => u.id !== user.id));
+    }
+  };
+
+  // Select all users (filtered)
+  const handleSelectAll = () => {
+    const filteredUsers = getFilteredUsers();
+    setSelectedUsersForEmail(filteredUsers);
+  };
+
+  // Deselect all users
+  const handleDeselectAll = () => {
+    setSelectedUsersForEmail([]);
+  };
+
+  // Get filtered users based on current filter
+  const getFilteredUsers = () => {
+    if (userFilter === "all") return users;
+    if (userFilter === "individuals") {
+      return users.filter((u) => !u.user_type || u.user_type === "Individual");
+    }
+    if (userFilter === "business") {
+      return users.filter((u) => u.user_type === "Business");
+    }
+    return users;
+  };
+
+  // Generate email previews for all selected users
+  const generateEmailPreviews = () => {
+    const previews = selectedUsersForEmail.map((user) => {
+      const parsedSubject = parseTemplateVariables(emailForm.subject, user);
+      const parsedMessage = parseTemplateVariables(emailForm.message, user);
+
+      return {
+        email: user.email,
+        subject: parsedSubject,
+        message: parsedMessage,
+        user: user,
+      };
+    });
+
+    setEmailPreviews(previews);
+    setShowEmailPreview(true);
+  };
+
   const handleTemplateSelect = (templateId: string) => {
     const template = emailTemplates.find((t) => t.id === templateId);
     if (!template) return;
@@ -992,7 +1162,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       }
 
       if (emails.length === 0) {
-        alert("No valid email addresses found in the CSV file.");
+        showNotification(
+          "warning",
+          "No valid email addresses found in the CSV file.",
+        );
         return;
       }
 
@@ -1001,7 +1174,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         ...prev,
         to_email: `${emails.length} recipients`,
       }));
-      alert(`Successfully loaded ${emails.length} email addresses from CSV.`);
+      showNotification(
+        "success",
+        `Successfully loaded ${emails.length} email addresses from CSV.`,
+      );
     };
     reader.readAsText(file);
 
@@ -1027,45 +1203,63 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
   const handleSendEmail = async () => {
     // Determine recipient(s) based on mode
-    const recipients: string[] = [];
+    const recipients: { email: string; name: string; userData?: any }[] = [];
 
     if (emailMode === "bulk") {
       if (bulkEmails.length === 0) {
-        alert("Please upload a CSV with email addresses first");
+        showNotification(
+          "warning",
+          "Please upload a CSV with email addresses first",
+        );
         return;
       }
-      recipients.push(...bulkEmails);
+      bulkEmails.forEach((email) => {
+        recipients.push({ email, name: "" });
+      });
     } else if (emailMode === "custom") {
       if (!customEmail) {
-        alert("Please enter a recipient email address");
+        showNotification("warning", "Please enter a recipient email address");
         return;
       }
-      recipients.push(customEmail);
+      recipients.push({ email: customEmail, name: customName });
     } else {
-      if (!emailForm.to_email) {
-        alert("Please select a user");
+      // User mode - multi-select
+      if (selectedUsersForEmail.length === 0) {
+        showNotification("warning", "Please select at least one user");
         return;
       }
-      recipients.push(emailForm.to_email);
+      selectedUsersForEmail.forEach((user) => {
+        recipients.push({
+          email: user.email,
+          name: `${user.firstname} ${user.lastname}`,
+          userData: user,
+        });
+      });
     }
 
     if (!emailForm.subject || !emailForm.message) {
-      alert("Please fill in subject and message");
+      showNotification("warning", "Please fill in subject and message");
       return;
     }
 
     const confirmMsg =
       recipients.length > 1
         ? `Are you sure you want to send this email to ${recipients.length} recipients?`
-        : `Are you sure you want to send this email to ${recipients[0]}?`;
+        : `Are you sure you want to send this email to ${recipients[0].email}?`;
 
-    if (!confirm(confirmMsg)) {
-      return;
-    }
+    showConfirm(confirmMsg, () => executeSendEmail(recipients), {
+      title: "Send Email",
+      confirmText: "Send",
+      isDangerous: false,
+    });
+  };
 
+  const executeSendEmail = async (
+    recipients: { email: string; name: string; userData?: any }[],
+  ) => {
     setEmailSending(true);
 
-    if (emailMode === "bulk" && recipients.length > 1) {
+    if (recipients.length > 1) {
       // Bulk send mode - send one by one with progress
       setIsBulkSending(true);
       setBulkSendProgress({ sent: 0, failed: 0, total: recipients.length });
@@ -1073,20 +1267,28 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       let sent = 0;
       let failed = 0;
 
-      for (const recipientEmail of recipients) {
+      for (const recipient of recipients) {
         try {
           const token = localStorage.getItem("admin_auth_token");
           const headers: HeadersInit = { "Content-Type": "application/json" };
           if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          // Parse template variables for each user
+          const parsedSubject = recipient.userData
+            ? parseTemplateVariables(emailForm.subject, recipient.userData)
+            : emailForm.subject;
+          const parsedMessage = recipient.userData
+            ? parseTemplateVariables(emailForm.message, recipient.userData)
+            : emailForm.message;
 
           const response = await fetch("/api/admin/send-custom-email", {
             method: "POST",
             credentials: "include",
             headers,
             body: JSON.stringify({
-              to_email: recipientEmail,
-              subject: emailForm.subject,
-              message: emailForm.message,
+              to_email: recipient.email,
+              subject: parsedSubject,
+              message: parsedMessage,
             }),
           });
 
@@ -1102,12 +1304,14 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       }
 
       setIsBulkSending(false);
-      alert(
-        `Bulk email complete!\n✓ Sent: ${sent}\n✗ Failed: ${failed}\nTotal: ${recipients.length}`,
+      showNotification(
+        sent === recipients.length ? "success" : "warning",
+        `Bulk email complete! Sent: ${sent}, Failed: ${failed}, Total: ${recipients.length}`,
       );
 
       // Clear form
       setEmailForm({ to_email: "", subject: "", message: "", user_name: "" });
+      setSelectedUsersForEmail([]);
       setBulkEmails([]);
       setSelectedTemplate("");
       setBulkSendProgress({ sent: 0, failed: 0, total: 0 });
@@ -1118,21 +1322,29 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
         const headers: HeadersInit = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
+        const recipient = recipients[0];
+        const parsedSubject = recipient.userData
+          ? parseTemplateVariables(emailForm.subject, recipient.userData)
+          : emailForm.subject;
+        const parsedMessage = recipient.userData
+          ? parseTemplateVariables(emailForm.message, recipient.userData)
+          : emailForm.message;
+
         const response = await fetch("/api/admin/send-custom-email", {
           method: "POST",
           credentials: "include",
           headers,
           body: JSON.stringify({
-            to_email: recipients[0],
-            subject: emailForm.subject,
-            message: emailForm.message,
+            to_email: recipient.email,
+            subject: parsedSubject,
+            message: parsedMessage,
           }),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-          alert("Email sent successfully!");
+          showNotification("success", "Email sent successfully!");
           setEmailForm({
             to_email: "",
             subject: "",
@@ -1140,16 +1352,20 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
             user_name: "",
           });
           setSelectedUserForEmail(null);
+          setSelectedUsersForEmail([]);
           setUserOrdersForEmail([]);
           setSelectedTemplate("");
           setCustomEmail("");
           setCustomName("");
         } else {
-          alert(data.error || data.detail || "Failed to send email");
+          showNotification(
+            "error",
+            data.error || data.detail || "Failed to send email",
+          );
         }
       } catch (error) {
         console.error("Error sending email:", error);
-        alert("An error occurred while sending the email");
+        showNotification("error", "An error occurred while sending the email");
       }
     }
 
@@ -1271,23 +1487,30 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
   const handleCreateAdmin = async () => {
     if (!adminForm.name || !adminForm.password || !adminForm.role) {
-      alert("Please fill in all fields");
+      showNotification("warning", "Please fill in all fields");
       return;
     }
 
     if (adminForm.password.length < 6) {
-      alert("Password must be at least 6 characters long");
+      showNotification(
+        "warning",
+        "Password must be at least 6 characters long",
+      );
       return;
     }
 
-    if (
-      !confirm(
-        `Are you sure you want to create admin "${adminForm.name}" with role "${adminForm.role}"?`,
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      `Are you sure you want to create admin "${adminForm.name}" with role "${adminForm.role}"?`,
+      () => executeCreateAdmin(),
+      {
+        title: "Create Admin",
+        confirmText: "Create",
+        isDangerous: false,
+      },
+    );
+  };
 
+  const executeCreateAdmin = async () => {
     setAdminActionLoading(true);
     try {
       const token = localStorage.getItem("admin_auth_token");
@@ -1308,30 +1531,34 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       const data = await response.json();
 
       if (response.ok) {
-        alert("Admin created successfully!");
+        showNotification("success", "Admin created successfully!");
         setAdminForm({ name: "", password: "", role: "support" });
         setShowCreateAdminModal(false);
         await fetchAdmins();
       } else {
-        alert(data.detail || "Failed to create admin");
+        showNotification("error", data.detail || "Failed to create admin");
       }
     } catch (error) {
       console.error("Error creating admin:", error);
-      alert("An error occurred while creating admin");
+      showNotification("error", "An error occurred while creating admin");
     } finally {
       setAdminActionLoading(false);
     }
   };
 
   const handleUpdateAdminRole = async (adminId: string, newRole: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to change this admin's role to "${newRole}"?`,
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      `Are you sure you want to change this admin's role to "${newRole}"?`,
+      () => executeUpdateAdminRole(adminId, newRole),
+      {
+        title: "Update Admin Role",
+        confirmText: "Update",
+        isDangerous: false,
+      },
+    );
+  };
 
+  const executeUpdateAdminRole = async (adminId: string, newRole: string) => {
     setAdminActionLoading(true);
     try {
       const token = localStorage.getItem("admin_auth_token");
@@ -1352,36 +1579,42 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       const data = await response.json();
 
       if (response.ok) {
-        alert("Admin role updated successfully!");
+        showNotification("success", "Admin role updated successfully!");
         await fetchAdmins();
       } else {
-        alert(data.detail || "Failed to update admin role");
+        showNotification("error", data.detail || "Failed to update admin role");
       }
     } catch (error) {
       console.error("Error updating admin role:", error);
-      alert("An error occurred while updating admin role");
+      showNotification("error", "An error occurred while updating admin role");
     } finally {
       setAdminActionLoading(false);
     }
   };
 
   const handleDeleteAdmin = async (adminId: string, adminName: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`,
+      () => {
+        showConfirm(
+          `WARNING: This will permanently delete admin "${adminName}". Type "DELETE" to confirm.`,
+          () => executeDeleteAdmin(adminId, adminName),
+          {
+            title: "Final Confirmation",
+            confirmText: "Delete",
+            isDangerous: true,
+          },
+        );
+      },
+      {
+        title: "Delete Admin",
+        confirmText: "Continue",
+        isDangerous: true,
+      },
+    );
+  };
 
-    if (
-      !confirm(
-        `WARNING: This will permanently delete admin "${adminName}". Type "DELETE" to confirm.`,
-      )
-    ) {
-      return;
-    }
-
+  const executeDeleteAdmin = async (adminId: string, adminName: string) => {
     setAdminActionLoading(true);
     try {
       const token = localStorage.getItem("admin_auth_token");
@@ -1401,14 +1634,14 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       const data = await response.json();
 
       if (response.ok) {
-        alert("Admin deleted successfully!");
+        showNotification("success", "Admin deleted successfully!");
         await fetchAdmins();
       } else {
-        alert(data.detail || "Failed to delete admin");
+        showNotification("error", data.detail || "Failed to delete admin");
       }
     } catch (error) {
       console.error("Error deleting admin:", error);
-      alert("An error occurred while deleting admin");
+      showNotification("error", "An error occurred while deleting admin");
     } finally {
       setAdminActionLoading(false);
     }
@@ -1554,14 +1787,18 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
   };
 
   const handleDeleteZone = async (zone: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete zone "${zone}"? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      `Are you sure you want to delete zone "${zone}"? This action cannot be undone.`,
+      () => executeDeleteZone(zone),
+      {
+        title: "Delete Zone",
+        confirmText: "Delete",
+        isDangerous: true,
+      },
+    );
+  };
 
+  const executeDeleteZone = async (zone: string) => {
     setActionLoading(true);
     try {
       const token = localStorage.getItem("admin_auth_token");
@@ -1582,7 +1819,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       await fetchZones();
     } catch (error) {
       console.error("Failed to delete zone:", error);
-      alert("Failed to delete zone");
+      showNotification("error", "Failed to delete zone");
     } finally {
       setActionLoading(false);
     }
@@ -1591,18 +1828,18 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
   const handleSaveZone = async () => {
     // Validation
     if (!zoneForm.zone.trim()) {
-      alert("Zone name is required");
+      showNotification("warning", "Zone name is required");
       return;
     }
 
     if (zoneForm.rates.length === 0) {
-      alert("At least one rate is required");
+      showNotification("warning", "At least one rate is required");
       return;
     }
 
     for (const rate of zoneForm.rates) {
       if (rate.weight <= 0 || rate.price <= 0) {
-        alert("Weight and price must be greater than 0");
+        showNotification("warning", "Weight and price must be greater than 0");
         return;
       }
     }
@@ -1637,7 +1874,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       });
     } catch (error: any) {
       console.error("Failed to save zone:", error);
-      alert(error.message || "Failed to save zone");
+      showNotification("error", error.message || "Failed to save zone");
     } finally {
       setActionLoading(false);
     }
@@ -1652,7 +1889,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
   const removeRateRow = (index: number) => {
     if (zoneForm.rates.length === 1) {
-      alert("At least one rate is required");
+      showNotification("warning", "At least one rate is required");
       return;
     }
     setZoneForm({
@@ -1831,7 +2068,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       );
     } catch (error) {
       console.error("Error downloading sample pricing:", error);
-      alert("Failed to generate sample pricing template");
+      showNotification("error", "Failed to generate sample pricing template");
     } finally {
       setPricingLoading(false);
     }
@@ -1854,7 +2091,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       const data = await response.json();
 
       if (!data || data.length === 0) {
-        alert("No existing pricing data found for this carrier");
+        showNotification(
+          "warning",
+          "No existing pricing data found for this carrier",
+        );
         setPricingLoading(false);
         return;
       }
@@ -1994,7 +2234,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
       );
     } catch (error) {
       console.error("Error downloading existing prices:", error);
-      alert("Failed to download existing pricing data");
+      showNotification("error", "Failed to download existing pricing data");
     } finally {
       setPricingLoading(false);
     }
@@ -2169,8 +2409,21 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     userId: string,
     action: "suspend" | "unsuspend" | "delete",
   ) => {
-    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+    showConfirm(
+      `Are you sure you want to ${action} this user?`,
+      () => executeUserAction(userId, action),
+      {
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+        confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+        isDangerous: action === "delete" || action === "suspend",
+      },
+    );
+  };
 
+  const executeUserAction = async (
+    userId: string,
+    action: "suspend" | "unsuspend" | "delete",
+  ) => {
     setActionLoading(true);
     try {
       const token = localStorage.getItem("admin_auth_token");
@@ -2204,10 +2457,10 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
 
       // Refresh users list
       await fetchUsers();
-      alert(`User ${action}d successfully`);
+      showNotification("success", `User ${action}d successfully`);
     } catch (error: any) {
       console.error(`Error ${action}ing user:`, error);
-      alert(error.message || `Failed to ${action} user`);
+      showNotification("error", error.message || `Failed to ${action} user`);
     } finally {
       setActionLoading(false);
     }
@@ -4638,6 +4891,7 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                     onClick={() => {
                       setEmailMode(mode.id);
                       setSelectedUserForEmail(null);
+                      setSelectedUsersForEmail([]);
                       setUserOrdersForEmail([]);
                       setCustomEmail("");
                       setCustomName("");
@@ -4686,212 +4940,366 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               </div>
             </div>
 
-            {/* USER MODE: User Selection Dropdown */}
+            {/* USER MODE: Multi-Select with Checkboxes */}
             {emailMode === "user" && (
               <div style={{ marginBottom: "1.5rem" }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#374151",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  Select User
-                </label>
-                <select
-                  onChange={(e) => handleUserSelect(e.target.value)}
-                  value={selectedUserForEmail?.id || ""}
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    outline: "none",
-                  }}
-                >
-                  <option value="">-- Select a user --</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.firstname} {user.lastname} ({user.email})
-                    </option>
-                  ))}
-                </select>
-
-                {/* User Details Card */}
-                {selectedUserForEmail && (
-                  <div
+                {/* Filter Buttons */}
+                <div style={{ marginBottom: "1rem" }}>
+                  <label
                     style={{
-                      marginTop: "1rem",
-                      padding: "1rem 1.25rem",
-                      backgroundColor: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: "10px",
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      marginBottom: "0.5rem",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
-                        marginBottom: "0.75rem",
-                      }}
-                    >
-                      <div
+                    Select Recipients
+                  </label>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.5rem",
+                      flexWrap: "wrap",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    {[
+                      { id: "all", label: "All Users", count: users.length },
+                      {
+                        id: "individuals",
+                        label: "Individuals",
+                        count: users.filter(
+                          (u) => !u.user_type || u.user_type === "Individual",
+                        ).length,
+                      },
+                      {
+                        id: "business",
+                        label: "Business",
+                        count: users.filter((u) => u.user_type === "Business")
+                          .length,
+                      },
+                    ].map((filter) => (
+                      <button
+                        key={filter.id}
+                        onClick={() => setUserFilter(filter.id as any)}
                         style={{
-                          width: "40px",
-                          height: "40px",
-                          borderRadius: "50%",
-                          background:
-                            "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "white",
-                          fontWeight: "700",
-                          fontSize: "16px",
-                        }}
-                      >
-                        {(
-                          selectedUserForEmail.firstname?.[0] || ""
-                        ).toUpperCase()}
-                        {(
-                          selectedUserForEmail.lastname?.[0] || ""
-                        ).toUpperCase()}
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: "700",
-                            fontSize: "15px",
-                            color: "#1f2937",
-                          }}
-                        >
-                          {selectedUserForEmail.firstname}{" "}
-                          {selectedUserForEmail.lastname}
-                        </div>
-                        <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                          User ID: {selectedUserForEmail.id}
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "0.5rem 1rem",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <div
-                        style={{
+                          padding: "0.5rem 0.9rem",
+                          backgroundColor:
+                            userFilter === filter.id ? "#1B5E20" : "#f3f4f6",
+                          color: userFilter === filter.id ? "white" : "#374151",
+                          border:
+                            userFilter === filter.id
+                              ? "2px solid #1B5E20"
+                              : "2px solid #d1d5db",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
                           display: "flex",
                           alignItems: "center",
                           gap: "0.4rem",
-                          color: "#374151",
                         }}
                       >
-                        <Mail size={13} style={{ color: "#6b7280" }} />
-                        <span style={{ color: "#6b7280" }}>Email:</span>{" "}
-                        <span style={{ fontWeight: "500" }}>
-                          {selectedUserForEmail.email}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                          color: "#374151",
-                        }}
-                      >
-                        <Phone size={13} style={{ color: "#6b7280" }} />
-                        <span style={{ color: "#6b7280" }}>Phone:</span>{" "}
-                        <span style={{ fontWeight: "500" }}>
-                          {selectedUserForEmail.phone_number || "N/A"}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                          color: "#374151",
-                        }}
-                      >
-                        <Building2 size={13} style={{ color: "#6b7280" }} />
-                        <span style={{ color: "#6b7280" }}>Type:</span>{" "}
+                        {filter.label}
                         <span
                           style={{
-                            padding: "0.15rem 0.5rem",
-                            borderRadius: "9999px",
-                            fontSize: "11px",
-                            fontWeight: "600",
                             backgroundColor:
-                              selectedUserForEmail.user_type === "Business"
-                                ? "#dbeafe"
-                                : "#f3e8ff",
-                            color:
-                              selectedUserForEmail.user_type === "Business"
-                                ? "#1e40af"
-                                : "#6b21a8",
-                          }}
-                        >
-                          {selectedUserForEmail.user_type || "Individual"}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.4rem",
-                          color: "#374151",
-                        }}
-                      >
-                        <CheckCircle size={13} style={{ color: "#6b7280" }} />
-                        <span style={{ color: "#6b7280" }}>Status:</span>{" "}
-                        <span
-                          style={{
-                            padding: "0.15rem 0.5rem",
+                              userFilter === filter.id
+                                ? "rgba(255,255,255,0.2)"
+                                : "#e5e7eb",
+                            padding: "0.1rem 0.4rem",
                             borderRadius: "9999px",
                             fontSize: "11px",
-                            fontWeight: "600",
-                            backgroundColor: selectedUserForEmail.is_suspended
-                              ? "#fef3c7"
-                              : "#d1fae5",
-                            color: selectedUserForEmail.is_suspended
-                              ? "#92400e"
-                              : "#065f46",
                           }}
                         >
-                          {selectedUserForEmail.is_suspended
-                            ? "Suspended"
-                            : "Active"}
+                          {filter.count}
                         </span>
-                      </div>
-                    </div>
-                    {selectedUserForEmail.company_name && (
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Select All / Deselect All */}
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={handleSelectAll}
+                      style={{
+                        padding: "0.4rem 0.75rem",
+                        backgroundColor: "#eff6ff",
+                        color: "#1e40af",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: "6px",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Select All{" "}
+                      {getFilteredUsers().length > 0 &&
+                        `(${getFilteredUsers().length})`}
+                    </button>
+                    <button
+                      onClick={handleDeselectAll}
+                      style={{
+                        padding: "0.4rem 0.75rem",
+                        backgroundColor: "#fef2f2",
+                        color: "#991b1b",
+                        border: "1px solid #fecaca",
+                        borderRadius: "6px",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Deselect All
+                    </button>
+                    {selectedUsersForEmail.length > 0 && (
                       <div
                         style={{
-                          marginTop: "0.5rem",
-                          fontSize: "13px",
-                          color: "#374151",
+                          padding: "0.4rem 0.75rem",
+                          backgroundColor: "#dcfce7",
+                          color: "#166534",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: "700",
                           display: "flex",
                           alignItems: "center",
-                          gap: "0.4rem",
                         }}
                       >
-                        <Building2 size={13} style={{ color: "#6b7280" }} />
-                        <span style={{ color: "#6b7280" }}>Company:</span>{" "}
-                        <span style={{ fontWeight: "500" }}>
-                          {selectedUserForEmail.company_name}
-                        </span>
+                        {selectedUsersForEmail.length} selected
                       </div>
                     )}
                   </div>
-                )}
+                </div>
+
+                {/* User List with Checkboxes */}
+                <div
+                  style={{
+                    maxHeight: "320px",
+                    overflowY: "auto",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "white",
+                  }}
+                >
+                  {getFilteredUsers().length === 0 ? (
+                    <div
+                      style={{
+                        padding: "2rem",
+                        textAlign: "center",
+                        color: "#9ca3af",
+                      }}
+                    >
+                      No users found
+                    </div>
+                  ) : (
+                    getFilteredUsers().map((user, idx) => {
+                      const isSelected = selectedUsersForEmail.some(
+                        (u) => u.id === user.id,
+                      );
+                      return (
+                        <label
+                          key={user.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "0.75rem 1rem",
+                            borderBottom:
+                              idx < getFilteredUsers().length - 1
+                                ? "1px solid #f3f4f6"
+                                : "none",
+                            cursor: "pointer",
+                            backgroundColor: isSelected ? "#f0fdf4" : "white",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseOver={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.backgroundColor = "#f9fafb";
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.backgroundColor = "white";
+                            }
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) =>
+                              handleUserCheckbox(user, e.target.checked)
+                            }
+                            style={{
+                              width: "16px",
+                              height: "16px",
+                              marginRight: "0.75rem",
+                              cursor: "pointer",
+                              accentColor: "#1B5E20",
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                                marginBottom: "0.25rem",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontWeight: "600",
+                                  fontSize: "13px",
+                                  color: "#1f2937",
+                                }}
+                              >
+                                {user.firstname} {user.lastname}
+                              </span>
+                              {user.user_type === "Business" && (
+                                <span
+                                  style={{
+                                    padding: "0.1rem 0.4rem",
+                                    borderRadius: "9999px",
+                                    fontSize: "10px",
+                                    fontWeight: "600",
+                                    backgroundColor: "#dbeafe",
+                                    color: "#1e40af",
+                                  }}
+                                >
+                                  Business
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                              {user.email}
+                              {user.company_name && ` • ${user.company_name}`}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Template Variables Help */}
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "0.75rem 1rem",
+                    backgroundColor: "#fffbeb",
+                    border: "1px solid #fcd34d",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: "600",
+                      color: "#92400e",
+                      marginBottom: "0.4rem",
+                      fontSize: "13px",
+                    }}
+                  >
+                    💡 Template Variables
+                  </div>
+                  <div style={{ color: "#78350f", lineHeight: "1.6" }}>
+                    Use these variables in subject/message to personalize for
+                    each user:
+                    <div
+                      style={{
+                        marginTop: "0.4rem",
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(140px, 1fr))",
+                        gap: "0.3rem",
+                      }}
+                    >
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @firstname
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @lastname
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @fullname
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @email
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @phone
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @country
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @usertype
+                      </code>
+                      <code
+                        style={{
+                          backgroundColor: "#fef3c7",
+                          padding: "0.1rem 0.3rem",
+                          borderRadius: "3px",
+                        }}
+                      >
+                        @company
+                      </code>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: "0.5rem",
+                        fontStyle: "italic",
+                        fontSize: "11px",
+                      }}
+                    >
+                      Example: &ldquo;Dear @firstname, your @usertype account
+                      has been updated...&rdquo;
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -5362,13 +5770,60 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               />
             </div>
 
+            {/* Preview Button (for multi-user mode) */}
+            {emailMode === "user" &&
+              selectedUsersForEmail.length > 0 &&
+              emailForm.subject &&
+              emailForm.message && (
+                <button
+                  onClick={generateEmailPreviews}
+                  disabled={emailSending || isBulkSending}
+                  style={{
+                    width: "100%",
+                    padding: "0.9rem 2rem",
+                    background:
+                      "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    cursor:
+                      emailSending || isBulkSending ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    transition: "all 0.2s",
+                    boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+                    marginBottom: "0.75rem",
+                  }}
+                  onMouseOver={(e) => {
+                    if (!emailSending && !isBulkSending) {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 6px 16px rgba(59, 130, 246, 0.4)";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 12px rgba(59, 130, 246, 0.3)";
+                  }}
+                >
+                  <Eye size={20} />
+                  Preview Emails for {selectedUsersForEmail.length} User
+                  {selectedUsersForEmail.length !== 1 ? "s" : ""}
+                </button>
+              )}
+
             {/* Send Button */}
             <button
               onClick={handleSendEmail}
               disabled={
                 emailSending ||
                 isBulkSending ||
-                (emailMode === "user" && !emailForm.to_email) ||
+                (emailMode === "user" && selectedUsersForEmail.length === 0) ||
                 (emailMode === "custom" && !customEmail) ||
                 (emailMode === "bulk" && bulkEmails.length === 0) ||
                 !emailForm.subject ||
@@ -5380,7 +5835,8 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                 background:
                   emailSending ||
                   isBulkSending ||
-                  (emailMode === "user" && !emailForm.to_email) ||
+                  (emailMode === "user" &&
+                    selectedUsersForEmail.length === 0) ||
                   (emailMode === "custom" && !customEmail) ||
                   (emailMode === "bulk" && bulkEmails.length === 0) ||
                   !emailForm.subject ||
@@ -5395,7 +5851,8 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
                 cursor:
                   emailSending ||
                   isBulkSending ||
-                  (emailMode === "user" && !emailForm.to_email) ||
+                  (emailMode === "user" &&
+                    selectedUsersForEmail.length === 0) ||
                   (emailMode === "custom" && !customEmail) ||
                   (emailMode === "bulk" && bulkEmails.length === 0) ||
                   !emailForm.subject ||
@@ -5435,9 +5892,11 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
               ) : (
                 <>
                   <Send size={20} />
-                  {emailMode === "bulk" && bulkEmails.length > 0
-                    ? `Send to ${bulkEmails.length} Recipient${bulkEmails.length !== 1 ? "s" : ""}`
-                    : "Send Email"}
+                  {emailMode === "user" && selectedUsersForEmail.length > 0
+                    ? `Send to ${selectedUsersForEmail.length} User${selectedUsersForEmail.length !== 1 ? "s" : ""}`
+                    : emailMode === "bulk" && bulkEmails.length > 0
+                      ? `Send to ${bulkEmails.length} Recipient${bulkEmails.length !== 1 ? "s" : ""}`
+                      : "Send Email"}
                 </>
               )}
             </button>
@@ -5791,6 +6250,362 @@ bob@company.com`}
                 )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Email Preview Modal */}
+      {showEmailPreview && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: "1rem",
+          }}
+          onClick={() => setShowEmailPreview(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              width: "100%",
+              maxWidth: "900px",
+              maxHeight: "90vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "1.5rem 2rem",
+                borderBottom: "2px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%)",
+                color: "white",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "20px",
+                    fontWeight: "bold",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <Eye size={24} />
+                  Email Preview
+                </h3>
+                <p
+                  style={{
+                    margin: "0.3rem 0 0 0",
+                    fontSize: "13px",
+                    opacity: 0.9,
+                  }}
+                >
+                  Review how each email will look before sending
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEmailPreview(false)}
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  border: "none",
+                  color: "white",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.3)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "1.5rem 2rem",
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: "1.5rem",
+                  padding: "1rem",
+                  backgroundColor: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "8px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "#1e40af",
+                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  📧 Previewing {emailPreviews.length} Email
+                  {emailPreviews.length !== 1 ? "s" : ""}
+                </div>
+                <div style={{ fontSize: "12px", color: "#3b82f6" }}>
+                  Each user will receive a personalized version with their
+                  details automatically filled in. Scroll down to see all
+                  previews.
+                </div>
+              </div>
+
+              {emailPreviews.map((preview, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: idx < emailPreviews.length - 1 ? "1.5rem" : 0,
+                    padding: "1.5rem",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "12px",
+                    backgroundColor: "#fafafa",
+                  }}
+                >
+                  {/* Recipient Info */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      marginBottom: "1rem",
+                      padding: "0.75rem 1rem",
+                      backgroundColor: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        background:
+                          "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                      }}
+                    >
+                      {preview.user.firstname?.[0]?.toUpperCase() || ""}
+                      {preview.user.lastname?.[0]?.toUpperCase() || ""}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontWeight: "700",
+                          fontSize: "14px",
+                          color: "#1f2937",
+                        }}
+                      >
+                        {preview.user.firstname} {preview.user.lastname}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#6b7280",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <Mail size={11} />
+                        {preview.email}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: "0.3rem 0.6rem",
+                        borderRadius: "9999px",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        backgroundColor: "#dbeafe",
+                        color: "#1e40af",
+                      }}
+                    >
+                      Email {idx + 1} of {emailPreviews.length}
+                    </div>
+                  </div>
+
+                  {/* Email Preview */}
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Subject Line */}
+                    <div
+                      style={{
+                        padding: "1rem 1.25rem",
+                        backgroundColor: "#f9fafb",
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          color: "#6b7280",
+                          marginBottom: "0.3rem",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        Subject:
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: "700",
+                          color: "#1f2937",
+                        }}
+                      >
+                        {preview.subject}
+                      </div>
+                    </div>
+
+                    {/* Email Body */}
+                    <div
+                      style={{
+                        padding: "1.25rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          color: "#6b7280",
+                          marginBottom: "0.5rem",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        Message:
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "#374151",
+                          lineHeight: "1.8",
+                          whiteSpace: "pre-wrap",
+                          fontFamily: "system-ui, -apple-system, sans-serif",
+                        }}
+                      >
+                        {preview.message}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "1.25rem 2rem",
+                borderTop: "2px solid #e5e7eb",
+                backgroundColor: "#f9fafb",
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => setShowEmailPreview(false)}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  backgroundColor: "white",
+                  color: "#374151",
+                  border: "2px solid #d1d5db",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f3f4f6";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "white";
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowEmailPreview(false);
+                  handleSendEmail();
+                }}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  background:
+                    "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 16px rgba(16, 185, 129, 0.4)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 12px rgba(16, 185, 129, 0.3)";
+                }}
+              >
+                <Send size={16} />
+                Send All ({emailPreviews.length})
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -8037,6 +8852,210 @@ bob@company.com`}
         </div>
       )}
 
+      {/* Toast Notifications */}
+      <div
+        style={{
+          position: "fixed",
+          top: "1rem",
+          right: "1rem",
+          zIndex: 10000,
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.75rem",
+          maxWidth: "400px",
+        }}
+      >
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            style={{
+              backgroundColor: "#fff",
+              borderLeft: `4px solid ${
+                notification.type === "success"
+                  ? "#10b981"
+                  : notification.type === "error"
+                    ? "#ef4444"
+                    : notification.type === "warning"
+                      ? "#f59e0b"
+                      : "#3b82f6"
+              }`,
+              borderRadius: "8px",
+              padding: "1rem",
+              boxShadow:
+                "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+              display: "flex",
+              alignItems: "start",
+              gap: "0.75rem",
+              animation: "slideIn 0.3s ease-out",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "1.25rem",
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >
+              {notification.type === "success"
+                ? "✓"
+                : notification.type === "error"
+                  ? "✕"
+                  : notification.type === "warning"
+                    ? "⚠"
+                    : "ℹ"}
+            </div>
+            <div style={{ flex: 1, fontSize: "14px", color: "#374151" }}>
+              {notification.message}
+            </div>
+            <button
+              onClick={() => removeNotification(notification.id)}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "1.25rem",
+                color: "#9ca3af",
+                cursor: "pointer",
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Confirm Dialog */}
+      {confirmDialog.isOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10001,
+            padding: "1rem",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              if (confirmDialog.onCancel) confirmDialog.onCancel();
+              setConfirmDialog({
+                isOpen: false,
+                title: "",
+                message: "",
+                onConfirm: () => {},
+                onCancel: () => {},
+              });
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              maxWidth: "500px",
+              width: "100%",
+              boxShadow:
+                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              animation: "fadeIn 0.2s ease-out",
+            }}
+          >
+            <div
+              style={{
+                padding: "1.5rem",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "1.25rem",
+                  fontWeight: "700",
+                  color: "#111827",
+                }}
+              >
+                {confirmDialog.title || "Confirm Action"}
+              </h3>
+            </div>
+            <div
+              style={{
+                padding: "1.5rem",
+                fontSize: "15px",
+                color: "#374151",
+                lineHeight: "1.6",
+              }}
+            >
+              {confirmDialog.message}
+            </div>
+            <div
+              style={{
+                padding: "1.5rem",
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => {
+                  if (confirmDialog.onCancel) confirmDialog.onCancel();
+                  setConfirmDialog({
+                    isOpen: false,
+                    title: "",
+                    message: "",
+                    onConfirm: () => {},
+                    onCancel: () => {},
+                  });
+                }}
+                style={{
+                  padding: "0.625rem 1.25rem",
+                  backgroundColor: "#f3f4f6",
+                  color: "#374151",
+                  border: "2px solid #d1d5db",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {confirmDialog.cancelText || "Cancel"}
+              </button>
+              <button
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog({
+                    isOpen: false,
+                    title: "",
+                    message: "",
+                    onConfirm: () => {},
+                    onCancel: () => {},
+                  });
+                }}
+                style={{
+                  padding: "0.625rem 1.25rem",
+                  backgroundColor: confirmDialog.isDangerous
+                    ? "#ef4444"
+                    : "#1B5E20",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {confirmDialog.confirmText || "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes spin {
           from {
@@ -8044,6 +9063,28 @@ bob@company.com`}
           }
           to {
             transform: rotate(360deg);
+          }
+        }
+
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
           }
         }
 

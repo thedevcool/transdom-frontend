@@ -104,8 +104,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           detail:
-            errorData?.detail ||
-            "Failed to reset password. Please try again.",
+            errorData?.detail || "Failed to reset password. Please try again.",
         },
         { status: status || 500 },
       );

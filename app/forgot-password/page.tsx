@@ -150,8 +150,7 @@ export default function ForgotPassword() {
                 </div>
 
                 <p className="signup-login-link">
-                  Remember your password?{" "}
-                  <Link href="/sign-in">Sign In</Link>
+                  Remember your password? <Link href="/sign-in">Sign In</Link>
                 </p>
               </>
             ) : (
