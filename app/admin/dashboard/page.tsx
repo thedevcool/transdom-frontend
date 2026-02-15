@@ -1596,15 +1596,18 @@ Date: ${new Date(order.date_created).toLocaleDateString()}
     showConfirm(
       `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`,
       () => {
-        showConfirm(
-          `WARNING: This will permanently delete admin "${adminName}". Type "DELETE" to confirm.`,
-          () => executeDeleteAdmin(adminId, adminName),
-          {
-            title: "Final Confirmation",
-            confirmText: "Delete",
-            isDangerous: true,
-          },
-        );
+        // Use setTimeout to ensure the second confirmation shows after the first dialog closes
+        setTimeout(() => {
+          showConfirm(
+            `WARNING: This will permanently delete admin "${adminName}". This action cannot be undone.`,
+            () => executeDeleteAdmin(adminId, adminName),
+            {
+              title: "Final Confirmation",
+              confirmText: "Delete",
+              isDangerous: true,
+            },
+          );
+        }, 100);
       },
       {
         title: "Delete Admin",
